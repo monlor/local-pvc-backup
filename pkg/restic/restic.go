@@ -56,6 +56,7 @@ func (c *Client) getEnv() []string {
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", c.s3AccessKey),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", c.s3SecretKey),
 		fmt.Sprintf("AWS_DEFAULT_REGION=%s", c.s3Region),
+		fmt.Sprintf("TMPDIR=%s", c.cachePath),
 	}
 }
 
