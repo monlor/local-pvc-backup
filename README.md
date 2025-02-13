@@ -1,19 +1,33 @@
 # Local PVC Backup
 
-A Kubernetes DaemonSet service that automatically backs up Local-Path PVCs to S3 storage using restic.
+A lightweight and efficient Kubernetes DaemonSet service designed to automatically backup Local-Path Persistent Volume Claims (PVCs) to S3-compatible storage using restic. Perfect for backing up your stateful applications in Kubernetes with minimal configuration.
 
-## Features
+## ✨ Features
 
+🔄 **Automated Backup**
 - Runs as a DaemonSet on each node
-- Uses restic for efficient and secure backups
-- Supports incremental backups
-- Encryption support
-- Configurable backup retention policies
-- Flexible exclude patterns using restic's pattern format
-- Supports various workload types:
-  - Deployments
-  - DaemonSets
-  - StatefulSets
+- Automatically discovers and backs up PVCs with backup enabled
+- Configurable backup intervals
+
+🔒 **Secure & Efficient**
+- Powered by restic for efficient incremental backups
+- End-to-end encryption for data security
+- Deduplication and compression support
+
+⚙️ **Flexible Configuration**
+- Simple annotation-based backup configuration
+- Supports excluding files/directories using restic patterns
+- Configurable backup paths for selective backup
+
+🗑️ **Smart Retention**
+- Configurable retention policies
+- Automatic cleanup of old backups
+- Space-efficient backup storage
+
+💾 **Storage Support**
+- Works with any S3-compatible storage
+- Supports custom S3 endpoints and regions
+- Optional path prefix for better organization
 
 ## Annotation Format
 
