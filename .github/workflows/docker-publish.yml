@@ -122,13 +122,22 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64-${{ github.sha }} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:arm64-${{ github.sha }}
 
-      - name: Delete single arch images
-        run: |
-          # Delete the single arch images
-          gh api -X DELETE /orgs/${{ github.repository_owner }}/packages/container/${{ env.IMAGE_NAME }}/versions/$(echo ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64-${{ github.sha }} | cut -d'/' -f3-)
-          gh api -X DELETE /orgs/${{ github.repository_owner }}/packages/container/${{ env.IMAGE_NAME }}/versions/$(echo ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:arm64-${{ github.sha }} | cut -d'/' -f3-)
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Delete single arch images using delete-package-versions action
+      - name: Delete AMD64 image
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ env.IMAGE_NAME }}
+          package-type: container
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version-pattern: "amd64-${{ github.sha }}"
+
+      - name: Delete ARM64 image  
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ env.IMAGE_NAME }}
+          package-type: container
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version-pattern: "arm64-${{ github.sha }}"
 
       # Sign the resulting Docker image
       - name: Install cosign
