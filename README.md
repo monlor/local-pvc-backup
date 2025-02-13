@@ -18,9 +18,33 @@ A Kubernetes DaemonSet service that automatically backs up Local-Path PVCs to S3
 ## Annotation Format
 
 ```yaml
-backup.local-pvc.io/enabled: "true"                      # Enable backup for this PVC
-backup.local-pvc.io/exclude-pattern: "tmp/*,logs/*.log"  # Optional: Exclude specific files/paths
+backup.local-pvc.io/enabled: "true"                  # Enable backup for this PVC
+backup.local-pvc.io/include: "data,conf"             # Optional: Specify directories/files to backup (comma-separated paths)
+backup.local-pvc.io/exclude: "tmp/*,logs/*.log"      # Optional: Exclude patterns (supports restic's pattern format)
 ```
+
+## Pattern Format
+
+Only the `exclude` annotation supports restic's pattern format. The `include` annotation is a simple comma-separated list of paths relative to the PVC root.
+
+### Include Format
+- Simple comma-separated list of paths
+- Each path is relative to the PVC root
+- Does not support wildcards or patterns
+- Examples:
+  - `"data,conf"`: Backs up only the `data` and `conf` directories
+  - `"data/mysql,conf/my.cnf"`: Backs up specific paths
+
+### Exclude Format
+- Supports restic's pattern format
+- Supports wildcards and patterns
+- Examples:
+  - `"tmp/*"`: Excludes all files in tmp directory
+  - `"*.log"`: Excludes all log files
+  - `"data/*.tmp"`: Excludes tmp files in data directory
+  - `"logs/*.log,temp/*"`: Excludes multiple patterns
+
+If no `include` is specified, the entire PVC will be backed up (subject to exclude patterns).
 
 ## Configuration
 
@@ -63,7 +87,7 @@ metadata:
   name: mysql-data
   annotations:
     backup.local-pvc.io/enabled: "true"
-    backup.local-pvc.io/exclude-pattern: "tmp/*,*.tmp,*.log,lost+found"
+    backup.local-pvc.io/exclude: "tmp/*,*.tmp,*.log,lost+found"
 spec:
   # ... PVC spec
 ```
@@ -76,7 +100,7 @@ metadata:
   name: redis-data
   annotations:
     backup.local-pvc.io/enabled: "true"
-    backup.local-pvc.io/exclude-pattern: "temp/*,*.log,lost+found"
+    backup.local-pvc.io/exclude: "temp/*,*.log,lost+found"
 spec:
   # ... PVC spec
 ```

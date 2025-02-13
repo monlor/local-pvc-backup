@@ -41,20 +41,23 @@ const (
 	AnnotationPrefix = "backup.local-pvc.io"
 
 	// Specific annotations
-	AnnotationEnabled        = AnnotationPrefix + "/enabled"
-	AnnotationExcludePattern = AnnotationPrefix + "/exclude-pattern"
+	AnnotationEnabled = AnnotationPrefix + "/enabled"
+	AnnotationInclude = AnnotationPrefix + "/include"
+	AnnotationExclude = AnnotationPrefix + "/exclude"
 )
 
 // PVCBackupConfig represents the backup configuration for a specific PVC
 type PVCBackupConfig struct {
-	Enabled        bool
-	ExcludePattern string
+	Enabled bool
+	Include string
+	Exclude string
 }
 
 // DefaultPVCBackupConfig returns the default backup configuration
 func DefaultPVCBackupConfig() PVCBackupConfig {
 	return PVCBackupConfig{
-		Enabled:        false,
-		ExcludePattern: "",
+		Enabled: false,
+		Include: "",
+		Exclude: "",
 	}
 }

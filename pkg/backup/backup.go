@@ -3,6 +3,7 @@ package backup
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -82,20 +83,21 @@ func (m *Manager) StartBackupLoop(ctx context.Context) error {
 	}
 }
 
-// processPatterns processes comma-separated patterns and returns a slice of full path patterns
-func (m *Manager) processPatterns(pvcPath, patterns string) []string {
-	if patterns == "" {
+// processPatterns processes comma-separated pattern string and returns a list of patterns with base path
+func (m *Manager) processPatterns(basePath, patternStr string) []string {
+	if patternStr == "" {
 		return nil
 	}
 
-	result := []string{}
-	for _, p := range strings.Split(patterns, ",") {
-		p = strings.TrimSpace(p)
-		if p == "" {
+	var result []string
+	patterns := strings.Split(patternStr, ",")
+	for _, pattern := range patterns {
+		pattern = strings.TrimSpace(pattern)
+		if pattern == "" {
 			continue
 		}
-		pattern := fmt.Sprintf("%s/%s", pvcPath, p)
-		result = append(result, pattern)
+		// Join base path with pattern
+		result = append(result, filepath.Join(basePath, pattern))
 	}
 	return result
 }
@@ -119,10 +121,19 @@ func (m *Manager) performBackups(ctx context.Context) error {
 	// Add backup paths and exclude rules for each enabled PVC
 	for _, pvc := range pvcs {
 		m.log.Infof("Configuring backup for PVC %s/%s:", pvc.Namespace, pvc.Name)
-		backupPaths = append(backupPaths, pvc.Path)
+
+		// Add base PVC path if no include paths specified
+		if pvc.Config.Include == "" {
+			backupPaths = append(backupPaths, pvc.Path)
+		} else {
+			// Process include paths
+			if paths := m.processPatterns(pvc.Path, pvc.Config.Include); len(paths) > 0 {
+				backupPaths = append(backupPaths, paths...)
+			}
+		}
 
 		// Process exclude patterns
-		if patterns := m.processPatterns(pvc.Path, pvc.Config.ExcludePattern); len(patterns) > 0 {
+		if patterns := m.processPatterns(pvc.Path, pvc.Config.Exclude); len(patterns) > 0 {
 			excludePatterns = append(excludePatterns, patterns...)
 		}
 	}

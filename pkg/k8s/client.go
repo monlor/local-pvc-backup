@@ -160,8 +160,12 @@ func getBackupConfig(annotations map[string]string) config.PVCBackupConfig {
 		cfg.Enabled = strings.ToLower(enabled) == "true"
 	}
 
-	if excludePattern, ok := annotations[config.AnnotationExcludePattern]; ok {
-		cfg.ExcludePattern = excludePattern
+	if include, ok := annotations[config.AnnotationInclude]; ok {
+		cfg.Include = include
+	}
+
+	if exclude, ok := annotations[config.AnnotationExclude]; ok {
+		cfg.Exclude = exclude
 	}
 
 	return cfg
