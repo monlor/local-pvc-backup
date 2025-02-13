@@ -72,19 +72,12 @@ func (c *Client) InitRepository(ctx context.Context) error {
 	return nil
 }
 
-// Backup performs a backup of the specified path
-func (c *Client) Backup(ctx context.Context, sourcePath string, includePatterns, excludePatterns []string) error {
+// Backup performs a backup of the specified paths
+func (c *Client) Backup(ctx context.Context, sourcePaths []string, excludePatterns []string) error {
 	args := []string{
 		"backup",
 		"--repo", c.getRepository(),
 		"--host", c.nodeName,
-	}
-
-	// Add include patterns
-	for _, pattern := range includePatterns {
-		if pattern != "" {
-			args = append(args, "--include", pattern)
-		}
 	}
 
 	// Add exclude patterns
@@ -94,7 +87,8 @@ func (c *Client) Backup(ctx context.Context, sourcePath string, includePatterns,
 		}
 	}
 
-	args = append(args, sourcePath)
+	// Add all source paths
+	args = append(args, sourcePaths...)
 
 	cmd := exec.CommandContext(ctx, "restic", args...)
 	cmd.Env = append(os.Environ(), c.getEnv()...)

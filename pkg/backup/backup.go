@@ -112,21 +112,14 @@ func (m *Manager) performBackups(ctx context.Context) error {
 		return nil
 	}
 
-	// Prepare include and exclude patterns
-	includePatterns := []string{}
+	// Prepare backup paths and exclude patterns
+	backupPaths := []string{}
 	excludePatterns := []string{}
 
-	// Add include and exclude rules for each enabled PVC
+	// Add backup paths and exclude rules for each enabled PVC
 	for _, pvc := range pvcs {
 		m.log.Infof("Configuring backup for PVC %s/%s:", pvc.Namespace, pvc.Name)
-
-		// Process include patterns
-		if patterns := m.processPatterns(pvc.Path, pvc.Config.IncludePattern); len(patterns) > 0 {
-			includePatterns = append(includePatterns, patterns...)
-		} else {
-			// If no include rule specified, include entire PVC directory with all subdirectories
-			includePatterns = append(includePatterns, fmt.Sprintf("%s/**", pvc.Path))
-		}
+		backupPaths = append(backupPaths, pvc.Path)
 
 		// Process exclude patterns
 		if patterns := m.processPatterns(pvc.Path, pvc.Config.ExcludePattern); len(patterns) > 0 {
@@ -134,8 +127,8 @@ func (m *Manager) performBackups(ctx context.Context) error {
 		}
 	}
 
-	// Execute backup with storagePath as the base directory
-	if err := m.resticClient.Backup(ctx, m.storagePath, includePatterns, excludePatterns); err != nil {
+	// Execute backup with all PVC paths
+	if err := m.resticClient.Backup(ctx, backupPaths, excludePatterns); err != nil {
 		return fmt.Errorf("failed to backup data directory: %v", err)
 	}
 

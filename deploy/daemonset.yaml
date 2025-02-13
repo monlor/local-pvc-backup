@@ -20,45 +20,69 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            # S3 Configuration
             - name: S3_ENDPOINT
               valueFrom:
                 secretKeyRef:
                   name: local-pvc-backup
-                  key: s3-endpoint
+                  key: S3_ENDPOINT
             - name: S3_BUCKET
               valueFrom:
                 secretKeyRef:
                   name: local-pvc-backup
-                  key: s3-bucket
+                  key: S3_BUCKET
             - name: S3_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
                   name: local-pvc-backup
-                  key: s3-access-key
+                  key: S3_ACCESS_KEY
             - name: S3_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: local-pvc-backup
-                  key: s3-secret-key
+                  key: S3_SECRET_KEY
             - name: S3_REGION
               valueFrom:
                 secretKeyRef:
                   name: local-pvc-backup
-                  key: s3-region
-            - name: S3_PATH
-              valueFrom:
-                secretKeyRef:
-                  name: local-pvc-backup
-                  key: s3-path
+                  key: S3_REGION
+            # Restic Configuration
             - name: RESTIC_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: local-pvc-backup
-                  key: restic-password
+                  key: RESTIC_PASSWORD
+            # Backup Configuration from ConfigMap
+            - name: BACKUP_STORAGE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: local-pvc-backup
+                  key: BACKUP_STORAGE_PATH
             - name: BACKUP_LOG_LEVEL
-              value: "info"
+              valueFrom:
+                configMapKeyRef:
+                  name: local-pvc-backup
+                  key: BACKUP_LOG_LEVEL
             - name: BACKUP_INTERVAL
-              value: "1h"
+              valueFrom:
+                configMapKeyRef:
+                  name: local-pvc-backup
+                  key: BACKUP_INTERVAL
+            - name: BACKUP_RETENTION
+              valueFrom:
+                configMapKeyRef:
+                  name: local-pvc-backup
+                  key: BACKUP_RETENTION
+            - name: S3_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: local-pvc-backup
+                  key: S3_PATH
+            - name: RESTIC_CACHE_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: local-pvc-backup
+                  key: RESTIC_CACHE_PATH
           volumeMounts:
             - name: storage
               mountPath: /data

@@ -9,7 +9,7 @@ A Kubernetes DaemonSet service that automatically backs up Local-Path PVCs to S3
 - Supports incremental backups
 - Encryption support
 - Configurable backup retention policies
-- Flexible include/exclude patterns using restic's pattern format
+- Flexible exclude patterns using restic's pattern format
 - Supports various workload types:
   - Deployments
   - DaemonSets
@@ -19,7 +19,6 @@ A Kubernetes DaemonSet service that automatically backs up Local-Path PVCs to S3
 
 ```yaml
 backup.local-pvc.io/enabled: "true"                      # Enable backup for this PVC
-backup.local-pvc.io/include-pattern: "*.sql,conf/*.cnf"  # Optional: Only backup specific files/paths
 backup.local-pvc.io/exclude-pattern: "tmp/*,logs/*.log"  # Optional: Exclude specific files/paths
 ```
 
@@ -64,8 +63,7 @@ metadata:
   name: mysql-data
   annotations:
     backup.local-pvc.io/enabled: "true"
-    backup.local-pvc.io/include-pattern: "*.sql,*.cnf,data/*.ibd"
-    backup.local-pvc.io/exclude-pattern: "tmp/*,*.tmp,*.log"
+    backup.local-pvc.io/exclude-pattern: "tmp/*,*.tmp,*.log,lost+found"
 spec:
   # ... PVC spec
 ```
@@ -78,8 +76,7 @@ metadata:
   name: redis-data
   annotations:
     backup.local-pvc.io/enabled: "true"
-    backup.local-pvc.io/include-pattern: "*.rdb,*.aof,*.conf"
-    backup.local-pvc.io/exclude-pattern: "temp/*,*.log"
+    backup.local-pvc.io/exclude-pattern: "temp/*,*.log,lost+found"
 spec:
   # ... PVC spec
 ```
@@ -90,9 +87,31 @@ spec:
 2. It monitors PVCs mounted on the node
 3. For each PVC with backup enabled:
    - Creates a restic repository in S3 if not exists
-   - Performs incremental backups based on include/exclude patterns
+   - Backs up all enabled PVCs in a single restic backup command
+   - Applies user-defined exclude patterns for each PVC
+   - Performs incremental backups
    - Maintains backups according to retention policy
 4. Each node has its own restic repository to avoid conflicts
+5. Uses PV name to locate the correct backup directory
+
+## Backup Command Format
+
+The service uses restic's backup command in the following format:
+```bash
+restic backup \
+  --repo s3:endpoint/bucket/path/node-xxx \
+  --host node-xxx \
+  --exclude "pvc1/tmp/*" \
+  --exclude "pvc1/*.log" \
+  --exclude "pvc2/temp/*" \
+  /data/pvc1 /data/pvc2
+```
+
+This approach:
+- Backs up multiple PVCs in a single command
+- Uses exclude patterns to skip unwanted files
+- Performs efficient incremental backups
+- Maintains backup history per node
 
 ## License
 

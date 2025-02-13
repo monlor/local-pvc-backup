@@ -42,14 +42,12 @@ const (
 
 	// Specific annotations
 	AnnotationEnabled        = AnnotationPrefix + "/enabled"
-	AnnotationIncludePattern = AnnotationPrefix + "/include-pattern"
 	AnnotationExcludePattern = AnnotationPrefix + "/exclude-pattern"
 )
 
 // PVCBackupConfig represents the backup configuration for a specific PVC
 type PVCBackupConfig struct {
 	Enabled        bool
-	IncludePattern string
 	ExcludePattern string
 }
 
@@ -57,7 +55,6 @@ type PVCBackupConfig struct {
 func DefaultPVCBackupConfig() PVCBackupConfig {
 	return PVCBackupConfig{
 		Enabled:        false,
-		IncludePattern: "", 
 		ExcludePattern: "",
 	}
 }
