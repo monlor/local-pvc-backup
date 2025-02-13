@@ -73,37 +73,32 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 	pvcMap := make(map[string]PVCInfo)
 
 	for _, pod := range pods.Items {
+		// Get backup config from pod annotations
+		cfg := getBackupConfig(pod.Annotations)
+		if !cfg.Enabled {
+			continue
+		}
+
 		// Process pod volumes
 		for _, volume := range pod.Spec.Volumes {
 			if volume.PersistentVolumeClaim == nil {
 				continue
 			}
 
-			// Get PVC
-			pvc, err := c.clientset.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, volume.PersistentVolumeClaim.ClaimName, metav1.GetOptions{})
-			if err != nil {
-				continue
-			}
-
-			// Check if backup is enabled via annotations
-			cfg := getBackupConfig(pvc.Annotations)
-			if !cfg.Enabled {
-				continue
-			}
-
+			pvcName := volume.PersistentVolumeClaim.ClaimName
 			// Create unique key for PVC
-			key := fmt.Sprintf("%s/%s", pvc.Namespace, pvc.Name)
+			key := fmt.Sprintf("%s/%s", pod.Namespace, pvcName)
 
 			// Check if PVC path exists in storage
-			pvcPath := fmt.Sprintf("pvc-%s_%s_%s", pvc.Name, pvc.Namespace, volume.Name)
+			pvcPath := fmt.Sprintf("pvc-%s_%s_%s", pvcName, pod.Namespace, volume.Name)
 			fullPath := filepath.Join("/data", pvcPath)
 			if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 				continue
 			}
 
 			pvcMap[key] = PVCInfo{
-				Name:      pvc.Name,
-				Namespace: pvc.Namespace,
+				Name:      pvcName,
+				Namespace: pod.Namespace,
 				Path:      pvcPath,
 				Config:    cfg,
 			}
