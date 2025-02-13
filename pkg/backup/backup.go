@@ -120,7 +120,7 @@ func (m *Manager) performBackups(ctx context.Context) error {
 
 	// Add backup paths and exclude rules for each enabled PVC
 	for _, pvc := range pvcs {
-		m.log.Infof("Configuring backup for PVC %s/%s:", pvc.Namespace, pvc.Name)
+		m.log.Infof("Configuring backup for PVC %s/%s, include: %s, exclude: %s", pvc.Namespace, pvc.Name, pvc.Config.Include, pvc.Config.Exclude)
 
 		// Add base PVC path if no include paths specified
 		if pvc.Config.Include == "" {
