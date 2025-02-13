@@ -57,10 +57,23 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: false  # Don't push to registry
+          load: true   # Load into docker daemon
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64-${{ github.sha }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      
+      - name: Save AMD64 image
+        run: |
+          mkdir -p /tmp/images
+          docker save ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64-${{ github.sha }} -o /tmp/images/amd64-image.tar
+      
+      - name: Upload AMD64 image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: amd64-image
+          path: /tmp/images/amd64-image.tar
+          retention-days: 1  # Only keep for 1 day
 
   build-arm64:
     runs-on: ubuntu-24.04-arm
@@ -92,10 +105,23 @@ jobs:
         with:
           context: .
           platforms: linux/arm64
-          push: ${{ github.event_name != 'pull_request' }}
+          push: false  # Don't push to registry
+          load: true   # Load into docker daemon
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:arm64-${{ github.sha }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+      
+      - name: Save ARM64 image
+        run: |
+          mkdir -p /tmp/images
+          docker save ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:arm64-${{ github.sha }} -o /tmp/images/arm64-image.tar
+      
+      - name: Upload ARM64 image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm64-image
+          path: /tmp/images/arm64-image.tar
+          retention-days: 1  # Only keep for 1 day
 
   merge-and-cleanup:
     needs: [build-amd64, build-arm64]
@@ -115,34 +141,38 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
-      - name: Create multi-arch manifest
+      - name: Download AMD64 image
+        uses: actions/download-artifact@v4
+        with:
+          name: amd64-image
+          path: /tmp/images
+
+      - name: Download ARM64 image
+        uses: actions/download-artifact@v4
+        with:
+          name: arm64-image
+          path: /tmp/images
+
+      - name: Load images
         run: |
-          # Create and push the multi-arch manifest
-          docker buildx imagetools create -t ${{ steps.meta.outputs.tags }} \
+          docker load -i /tmp/images/amd64-image.tar
+          docker load -i /tmp/images/arm64-image.tar
+
+      - name: Create and push multi-arch manifest
+        run: |
+          # Create manifest list and push it
+          docker manifest create ${{ steps.meta.outputs.tags }} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64-${{ github.sha }} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:arm64-${{ github.sha }}
-
-      # Delete AMD64 image
-      - name: Delete AMD64 image
-        uses: chipkent/action-cleanup-package@v1.0.1
-        with:
-          package-name: ${{ env.IMAGE_NAME }}
-          tag: amd64-${{ github.sha }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      # Delete ARM64 image
-      - name: Delete ARM64 image
-        uses: chipkent/action-cleanup-package@v1.0.1
-        with:
-          package-name: ${{ env.IMAGE_NAME }}
-          tag: arm64-${{ github.sha }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+    
+          # Push the manifest list
+          docker manifest push ${{ steps.meta.outputs.tags }}
 
       # Sign the resulting Docker image
       - name: Install cosign
         uses: sigstore/cosign-installer@v3.5.0
         with:
-          cosign-release: 'v2.2.4'
+          cosign-release: 'v2.2.0'
 
       - name: Sign the published Docker image
         env:
