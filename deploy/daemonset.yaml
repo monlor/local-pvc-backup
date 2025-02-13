@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: local-pvc-backup
+spec:
+  selector:
+    matchLabels:
+      app: local-pvc-backup
+  template:
+    metadata:
+      labels:
+        app: local-pvc-backup
+    spec:
+      serviceAccountName: local-pvc-backup
+      containers:
+        - name: backup
+          image: monlor/local-pvc-backup:0.1.0
+          env:
+            - name: KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: S3_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: local-pvc-backup
+                  key: s3-endpoint
+            - name: S3_BUCKET
+              valueFrom:
+                secretKeyRef:
+                  name: local-pvc-backup
+                  key: s3-bucket
+            - name: S3_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: local-pvc-backup
+                  key: s3-access-key
+            - name: S3_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: local-pvc-backup
+                  key: s3-secret-key
+            - name: S3_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: local-pvc-backup
+                  key: s3-region
+            - name: S3_PATH
+              valueFrom:
+                secretKeyRef:
+                  name: local-pvc-backup
+                  key: s3-path
+            - name: RESTIC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: local-pvc-backup
+                  key: restic-password
+            - name: BACKUP_LOG_LEVEL
+              value: "info"
+            - name: BACKUP_INTERVAL
+              value: "1h"
+          volumeMounts:
+            - name: storage
+              mountPath: /data
+            - name: cache
+              mountPath: /var/cache/restic
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+      volumes:
+        - name: storage
+          hostPath:
+            path: /var/lib/rancher/k3s/storage
+            type: Directory
+        - name: cache
+          hostPath:
+            path: /var/lib/local-pvc-backup/cache
+            type: DirectoryOrCreate 
