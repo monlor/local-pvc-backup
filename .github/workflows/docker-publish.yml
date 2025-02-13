@@ -122,22 +122,21 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:amd64-${{ github.sha }} \
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:arm64-${{ github.sha }}
 
-      # Delete single arch images using delete-package-versions action
+      # Delete AMD64 image
       - name: Delete AMD64 image
-        uses: actions/delete-package-versions@v5
+        uses: chipkent/action-cleanup-package@v1.0.1
         with:
           package-name: ${{ env.IMAGE_NAME }}
-          package-type: container
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version-pattern: "amd64-${{ github.sha }}"
+          tag: amd64-${{ github.sha }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Delete ARM64 image  
-        uses: actions/delete-package-versions@v5
+      # Delete ARM64 image
+      - name: Delete ARM64 image
+        uses: chipkent/action-cleanup-package@v1.0.1
         with:
           package-name: ${{ env.IMAGE_NAME }}
-          package-type: container
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version-pattern: "arm64-${{ github.sha }}"
+          tag: arm64-${{ github.sha }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       # Sign the resulting Docker image
       - name: Install cosign
