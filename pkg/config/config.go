@@ -31,8 +31,8 @@ type ResticConfig struct {
 type BackupConfig struct {
 	StoragePath    string        `env:"STORAGE_PATH" envDefault:"/data"`
 	LogLevel       string        `env:"LOG_LEVEL" envDefault:"info"`
-	BackupInterval time.Duration `env:"INTERVAL" envDefault:"1h"`         // Backup interval
-	Retention      string        `env:"RETENTION" envDefault:"7d,4w,12m"` // Retention policy, e.g.: 7d,4w,12m
+	BackupInterval time.Duration `env:"INTERVAL" envDefault:"1h"`   // Backup interval
+	Retention      string        `env:"RETENTION" envDefault:"14d"` // Retention policy: keep backups within 7 days, 30 days, and 365 days
 }
 
 // Annotations for backup configuration
