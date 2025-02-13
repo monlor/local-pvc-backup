@@ -1,5 +1,7 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.21-alpine AS builder
+
+ARG TARGETARCH
 
 WORKDIR /app
 
@@ -14,10 +16,10 @@ RUN go mod download
 COPY . .
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /local-pvc-backup main.go
+RUN GOARCH=${TARGETARCH} CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /local-pvc-backup main.go
 
 # Final stage
-FROM alpine:3.19
+FROM --platform=$TARGETPLATFORM alpine:3.19
 
 # Install restic and dependencies
 RUN apk add --no-cache restic ca-certificates tzdata
