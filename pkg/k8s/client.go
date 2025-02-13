@@ -99,7 +99,7 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 			pvcMap[key] = PVCInfo{
 				Name:      pvcName,
 				Namespace: pod.Namespace,
-				Path:      pvcPath,
+				Path:      fullPath, // Use full path including /data
 				Config:    cfg,
 			}
 		}
