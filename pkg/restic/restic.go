@@ -42,6 +42,9 @@ func NewClient(s3Endpoint, s3Bucket, s3Path, s3AccessKey, s3SecretKey, s3Region,
 
 // getRepository returns the S3 repository URL
 func (c *Client) getRepository() string {
+	if c.s3Path == "" {
+		return fmt.Sprintf("s3:%s/%s/node-%s", c.s3Endpoint, c.s3Bucket, c.nodeName)
+	}
 	return fmt.Sprintf("s3:%s/%s/%s/node-%s", c.s3Endpoint, c.s3Bucket, c.s3Path, c.nodeName)
 }
 
