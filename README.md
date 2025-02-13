@@ -70,22 +70,6 @@ spec:
   # ... PVC spec
 ```
 
-## Development
-
-```bash
-# Build the binary
-make build
-
-# Run tests
-make test
-
-# Build Docker image
-make docker-build
-
-# Push Docker image
-make docker-push
-```
-
 ## How it Works
 
 1. The service runs as a DaemonSet on each node

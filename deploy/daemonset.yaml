@@ -14,7 +14,7 @@ spec:
       serviceAccountName: local-pvc-backup
       containers:
         - name: backup
-          image: monlor/local-pvc-backup:0.1.0
+          image: ghcr.io/monlor/local-pvc-backup:main
           env:
             - name: KUBERNETES_NODE_NAME
               valueFrom:

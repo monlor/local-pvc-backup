@@ -24,5 +24,6 @@ FROM scratch
 # Copy SSL certificates from builder
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /local-pvc-backup /local-pvc-backup
+COPY --from=restic/restic:0.17.3 /usr/bin/restic /usr/bin/restic
 
 ENTRYPOINT ["/local-pvc-backup"] 
