@@ -94,14 +94,18 @@ func (m *Manager) performBackups(ctx context.Context) error {
 
 	// Add include and exclude rules for each enabled PVC
 	for _, pvc := range pvcs {
+		m.log.Infof("Configuring backup for PVC %s/%s:", pvc.Namespace, pvc.Name)
+
 		// Add include rule
 		if pvc.Config.IncludePattern != "" {
 			// Limit include rule to specific PVC path
 			pattern := fmt.Sprintf("%s/%s", pvc.Path, pvc.Config.IncludePattern)
 			includePatterns = append(includePatterns, pattern)
+			m.log.Infof("  - Include pattern: %s", pattern)
 		} else {
 			// If no include rule specified, include entire PVC directory
 			includePatterns = append(includePatterns, pvc.Path)
+			m.log.Infof("  - Include pattern: %s (entire directory)", pvc.Path)
 		}
 
 		// Add exclude rule
@@ -109,6 +113,9 @@ func (m *Manager) performBackups(ctx context.Context) error {
 			// Limit exclude rule to specific PVC path
 			pattern := fmt.Sprintf("%s/%s", pvc.Path, pvc.Config.ExcludePattern)
 			excludePatterns = append(excludePatterns, pattern)
+			m.log.Infof("  - Exclude pattern: %s", pattern)
+		} else {
+			m.log.Info("  - No exclude pattern configured")
 		}
 	}
 

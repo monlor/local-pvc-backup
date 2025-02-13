@@ -64,6 +64,7 @@ func (c *Client) getEnv() []string {
 func (c *Client) InitRepository(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "restic", "init", "--repo", c.getRepository())
 	cmd.Env = append(os.Environ(), c.getEnv()...)
+	c.log.Debugf("Executing command: restic init --repo %s", c.getRepository())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to initialize repository: %v, output: %s", err, string(output))
@@ -97,6 +98,10 @@ func (c *Client) Backup(ctx context.Context, sourcePath string, includePatterns,
 
 	cmd := exec.CommandContext(ctx, "restic", args...)
 	cmd.Env = append(os.Environ(), c.getEnv()...)
+
+	// Log the full command with all arguments
+	c.log.Debugf("Executing command: restic %s", strings.Join(args, " "))
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to backup: %v, output: %s", err, string(output))
@@ -129,6 +134,10 @@ func (c *Client) Forget(ctx context.Context, retention string) error {
 
 	cmd := exec.CommandContext(ctx, "restic", args...)
 	cmd.Env = append(os.Environ(), c.getEnv()...)
+
+	// Log the full command with all arguments
+	c.log.Debugf("Executing command: restic %s", strings.Join(args, " "))
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to forget old snapshots: %v, output: %s", err, string(output))
@@ -140,6 +149,10 @@ func (c *Client) Forget(ctx context.Context, retention string) error {
 func (c *Client) Check(ctx context.Context) error {
 	cmd := exec.CommandContext(ctx, "restic", "check", "--repo", c.getRepository())
 	cmd.Env = append(os.Environ(), c.getEnv()...)
+
+	// Log the full command
+	c.log.Debugf("Executing command: restic check --repo %s", c.getRepository())
+
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("repository check failed: %v, output: %s", err, string(output))
