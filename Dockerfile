@@ -19,25 +19,10 @@ COPY . .
 RUN GOARCH=${TARGETARCH} CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /local-pvc-backup main.go
 
 # Final stage
-FROM --platform=$TARGETPLATFORM alpine:3.19
+FROM scratch
 
-# Install restic and dependencies
-RUN apk add --no-cache restic ca-certificates tzdata
-
-WORKDIR /
-
-# Copy binary from builder
+# Copy SSL certificates from builder
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /local-pvc-backup /local-pvc-backup
-
-# Create directories
-RUN mkdir -p /data /var/cache/restic && \
-    adduser -D -u 1000 backup && \
-    chown -R backup:backup /data /var/cache/restic
-
-# Set timezone to UTC
-ENV TZ=UTC \
-    RESTIC_CACHE_DIR=/var/cache/restic
-
-USER backup
 
 ENTRYPOINT ["/local-pvc-backup"] 
