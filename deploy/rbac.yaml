@@ -9,7 +9,7 @@ metadata:
   name: local-pvc-backup
 rules:
   - apiGroups: [""]
-    resources: ["pods"]
+    resources: ["pods", "persistentvolumeclaims"]
     verbs: ["get", "list", "watch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1

@@ -24,7 +24,7 @@ type Manager struct {
 
 // NewManager creates a new backup manager
 func NewManager(config *cfg.Config, log *logrus.Logger) (*Manager, error) {
-	k8sClient, err := k8s.NewClient()
+	k8sClient, err := k8s.NewClient(log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create k8s client: %v", err)
 	}

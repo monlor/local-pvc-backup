@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/monlor/local-pvc-backup/pkg/config"
+	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -19,10 +20,11 @@ import (
 type Client struct {
 	clientset *kubernetes.Clientset
 	nodeName  string
+	log       *logrus.Logger
 }
 
 // NewClient creates a new Kubernetes client
-func NewClient() (*Client, error) {
+func NewClient(log *logrus.Logger) (*Client, error) {
 	var config *rest.Config
 	var err error
 
@@ -51,6 +53,7 @@ func NewClient() (*Client, error) {
 	return &Client{
 		clientset: clientset,
 		nodeName:  nodeName,
+		log:       log,
 	}, nil
 }
 
@@ -69,13 +72,18 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 		return nil, fmt.Errorf("failed to list pods on node %s: %v", c.nodeName, err)
 	}
 
+	c.log.Debugf("Found %d pods on node %s", len(pods.Items), c.nodeName)
+
 	// Use map to deduplicate PVCs
 	pvcMap := make(map[string]PVCInfo)
 
 	for _, pod := range pods.Items {
+		c.log.Debugf("Processing pod %s/%s", pod.Namespace, pod.Name)
+
 		// Get backup config from pod annotations
 		cfg := getBackupConfig(pod.Annotations)
 		if !cfg.Enabled {
+			c.log.Debugf("  - Backup not enabled for pod %s/%s", pod.Namespace, pod.Name)
 			continue
 		}
 
@@ -89,17 +97,39 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 			// Create unique key for PVC
 			key := fmt.Sprintf("%s/%s", pod.Namespace, pvcName)
 
-			// Check if PVC path exists in storage
-			pvcPath := fmt.Sprintf("pvc-%s_%s_%s", pvcName, pod.Namespace, volume.Name)
-			fullPath := filepath.Join("/data", pvcPath)
-			if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			// Get PVC object
+			pvc, err := c.clientset.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, pvcName, metav1.GetOptions{})
+			if err != nil {
+				c.log.Errorf("Failed to get PVC %s/%s: %v", pod.Namespace, pvcName, err)
 				continue
 			}
 
+			// Get PV name from PVC
+			if pvc.Spec.VolumeName == "" {
+				c.log.Errorf("PVC %s/%s has no volume name", pod.Namespace, pvcName)
+				continue
+			}
+
+			// Construct the path using PV name
+			pvcPath := fmt.Sprintf("%s_%s_%s", pvc.Spec.VolumeName, pod.Namespace, volume.Name)
+			fullPath := filepath.Join("/data", pvcPath)
+
+			c.log.Debugf("  - Checking PVC %s", key)
+			c.log.Debugf("    - Volume name: %s", volume.Name)
+			c.log.Debugf("    - PV name: %s", pvc.Spec.VolumeName)
+			c.log.Debugf("    - Full path: %s", fullPath)
+
+			if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+				c.log.Errorf("PVC %s/%s does not exist on node %s", pod.Namespace, pvcName, c.nodeName)
+				continue
+			}
+
+			c.log.Debugf("    - Path exists, adding to backup list")
+
 			pvcMap[key] = PVCInfo{
 				Name:      pvcName,
-				Namespace: pod.Namespace,
-				Path:      fullPath, // Use full path including /data
+				Namespace: pvc.Namespace,
+				Path:      fullPath,
 				Config:    cfg,
 			}
 		}
@@ -111,6 +141,7 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 		pvcs = append(pvcs, pvc)
 	}
 
+	c.log.Debugf("Found %d PVCs to backup", len(pvcs))
 	return pvcs, nil
 }
 

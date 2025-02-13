@@ -165,7 +165,7 @@ func (c *Client) EnsureRepository(ctx context.Context) error {
 	// Try to check the repository
 	err := c.Check(ctx)
 	if err != nil {
-		c.log.Infof("Repository check failed, trying to initialize: %v", err)
+		c.log.Infof("Repository check failed, trying to initialize...")
 		// If check fails, try to initialize
 		return c.InitRepository(ctx)
 	}

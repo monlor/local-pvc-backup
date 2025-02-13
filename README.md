@@ -9,7 +9,7 @@ A Kubernetes DaemonSet service that automatically backs up Local-Path PVCs to S3
 - Supports incremental backups
 - Encryption support
 - Configurable backup retention policies
-- Flexible include/exclude patterns
+- Flexible include/exclude patterns using restic's pattern format
 - Supports various workload types:
   - Deployments
   - DaemonSets
@@ -18,9 +18,9 @@ A Kubernetes DaemonSet service that automatically backs up Local-Path PVCs to S3
 ## Annotation Format
 
 ```yaml
-backup.local-pvc.io/enabled: "true"                    # Enable backup for this PVC
-backup.local-pvc.io/include-pattern: "data/.*|conf/.*" # Optional: Only backup specific paths
-backup.local-pvc.io/exclude-pattern: "*.tmp|*.log"     # Optional: Exclude specific files
+backup.local-pvc.io/enabled: "true"                      # Enable backup for this PVC
+backup.local-pvc.io/include-pattern: "*.sql,conf/*.cnf"  # Optional: Only backup specific files/paths
+backup.local-pvc.io/exclude-pattern: "tmp/*,logs/*.log"  # Optional: Exclude specific files/paths
 ```
 
 ## Configuration
@@ -33,7 +33,7 @@ The service requires the following environment variables:
 - `S3_ACCESS_KEY`: S3 access key
 - `S3_SECRET_KEY`: S3 secret key
 - `S3_REGION`: S3 region
-- `S3_PATH`: S3 storage path prefix (default: "backups")
+- `S3_PATH`: S3 storage path prefix (default: "")
 
 ### Restic Configuration
 - `RESTIC_PASSWORD`: Password for encrypting backups
@@ -43,7 +43,7 @@ The service requires the following environment variables:
 - `BACKUP_STORAGE_PATH`: Local storage path (default: "/data")
 - `BACKUP_LOG_LEVEL`: Logging level (default: "info")
 - `BACKUP_INTERVAL`: Backup interval (default: "1h")
-- `BACKUP_RETENTION`: Retention policy (default: "7d,4w,12m")
+- `BACKUP_RETENTION`: Retention policy (default: "14d")
 
 ## Installation
 
@@ -54,18 +54,32 @@ The service requires the following environment variables:
 kubectl apply -k deploy/
 ```
 
-## Usage Example
+## Usage Examples
 
-1. Enable backup for a PVC:
+1. MySQL backup example:
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: example-pvc
+  name: mysql-data
   annotations:
     backup.local-pvc.io/enabled: "true"
-    backup.local-pvc.io/include-pattern: "data/.*|conf/.*"
-    backup.local-pvc.io/exclude-pattern: "*.tmp|*.log"
+    backup.local-pvc.io/include-pattern: "*.sql,*.cnf,data/*.ibd"
+    backup.local-pvc.io/exclude-pattern: "tmp/*,*.tmp,*.log"
+spec:
+  # ... PVC spec
+```
+
+2. Redis backup example:
+```yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  annotations:
+    backup.local-pvc.io/enabled: "true"
+    backup.local-pvc.io/include-pattern: "*.rdb,*.aof,*.conf"
+    backup.local-pvc.io/exclude-pattern: "temp/*,*.log"
 spec:
   # ... PVC spec
 ```
