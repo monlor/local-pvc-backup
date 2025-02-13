@@ -111,11 +111,11 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 			}
 
 			// Construct the path using PV name
-			pvcPath := fmt.Sprintf("%s_%s_%s", pvc.Spec.VolumeName, pod.Namespace, volume.Name)
+			pvcPath := fmt.Sprintf("%s_%s_%s", pvc.Spec.VolumeName, pod.Namespace, pvcName)
 			fullPath := filepath.Join("/data", pvcPath)
 
 			c.log.Debugf("  - Checking PVC %s", key)
-			c.log.Debugf("    - Volume name: %s", volume.Name)
+			c.log.Debugf("    - PVC name: %s", pvcName)
 			c.log.Debugf("    - PV name: %s", pvc.Spec.VolumeName)
 			c.log.Debugf("    - Full path: %s", fullPath)
 
