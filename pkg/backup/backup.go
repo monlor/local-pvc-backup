@@ -107,6 +107,11 @@ func (m *Manager) performBackups(ctx context.Context) error {
 		return fmt.Errorf("failed to get PVCs to backup: %v", err)
 	}
 
+	if len(pvcs) == 0 {
+		m.log.Info("No PVCs to backup")
+		return nil
+	}
+
 	// Prepare include and exclude patterns
 	includePatterns := []string{}
 	excludePatterns := []string{}
