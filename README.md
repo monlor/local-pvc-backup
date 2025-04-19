@@ -29,6 +29,26 @@ A lightweight and efficient Kubernetes DaemonSet service designed to automatical
 - Supports custom S3 endpoints and regions
 - Optional path prefix for better organization
 
+## Command Structure
+
+The service provides two main commands:
+
+1. `run`: Start the backup service (used in DaemonSet)
+```bash
+local-pvc-backup run
+```
+
+2. `restic`: Execute restic commands with injected environment variables
+```bash
+local-pvc-backup restic [restic command]
+# Examples:
+local-pvc-backup restic snapshots
+local-pvc-backup restic -c
+local-pvc-backup restic backup /path/to/backup
+```
+
+The `restic` command automatically injects all necessary environment variables from the configuration.
+
 ## Annotation Format
 
 ```yaml
