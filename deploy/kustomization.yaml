@@ -19,7 +19,7 @@ configMapGenerator:
       - BACKUP_INTERVAL=1h
       - BACKUP_RETENTION=14d
       - S3_PATH=
-      - RESTIC_CACHE_PATH=/var/cache/restic
+      - RESTIC_CACHE_DIR=/var/cache/restic
 
 secretGenerator:
   - name: local-pvc-backup

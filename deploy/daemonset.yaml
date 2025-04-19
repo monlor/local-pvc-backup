@@ -78,11 +78,11 @@ spec:
                 configMapKeyRef:
                   name: local-pvc-backup
                   key: S3_PATH
-            - name: RESTIC_CACHE_PATH
+            - name: RESTIC_CACHE_DIR
               valueFrom:
                 configMapKeyRef:
                   name: local-pvc-backup
-                  key: RESTIC_CACHE_PATH
+                  key: RESTIC_CACHE_DIR
           volumeMounts:
             - name: storage
               mountPath: /data

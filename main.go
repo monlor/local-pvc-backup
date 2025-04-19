@@ -138,7 +138,7 @@ func runResticCommand(args []string) {
 	cmd.Env = os.Environ()
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_REPOSITORY=%s", resticClient.GetRepository()))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_PASSWORD=%s", cfg.ResticConfig.Password))
-	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_CACHE_PATH=%s", cfg.ResticConfig.CachePath))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_CACHE_DIR=%s", cfg.ResticConfig.CachePath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", cfg.S3Config.AccessKey))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", cfg.S3Config.SecretKey))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("AWS_DEFAULT_REGION=%s", cfg.S3Config.Region))

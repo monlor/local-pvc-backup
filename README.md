@@ -94,7 +94,7 @@ The service requires the following environment variables:
 
 ### Restic Configuration
 - `RESTIC_PASSWORD`: Password for encrypting backups
-- `RESTIC_CACHE_PATH`: Cache directory path (default: "/var/cache/restic")
+- `RESTIC_CACHE_DIR`: Cache directory path (default: "/var/cache/restic")
 
 ### Backup Configuration
 - `BACKUP_STORAGE_PATH`: Local storage path (default: "/data")
