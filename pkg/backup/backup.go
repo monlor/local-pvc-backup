@@ -24,25 +24,24 @@ type Manager struct {
 }
 
 // NewManager creates a new backup manager
-func NewManager(config *cfg.Config, log *logrus.Logger) (*Manager, error) {
-	k8sClient, err := k8s.NewClient(log)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create k8s client: %v", err)
+func NewManager(config *cfg.Config, k8sClient *k8s.Client, resticClient *restic.Client, log *logrus.Logger) (*Manager, error) {
+	// Ensure restic repository is initialized
+	if err := resticClient.EnsureRepository(context.Background()); err != nil {
+		return nil, fmt.Errorf("failed to ensure restic repository: %v", err)
 	}
 
-	resticClient := restic.NewClient(
-		config.S3Config.Endpoint,
-		config.S3Config.Bucket,
-		config.S3Config.Path,
-		config.S3Config.AccessKey,
-		config.S3Config.SecretKey,
-		config.S3Config.Region,
-		config.ResticConfig.Password,
-		config.ResticConfig.CachePath,
-		k8sClient.GetNodeName(),
-		log,
-	)
+	return &Manager{
+		resticClient: resticClient,
+		k8sClient:    k8sClient,
+		storagePath:  config.BackupConfig.StoragePath,
+		interval:     config.BackupConfig.BackupInterval,
+		retention:    config.BackupConfig.Retention,
+		log:          log,
+	}, nil
+}
 
+// NewManagerWithClients creates a new backup manager with existing clients
+func NewManagerWithClients(config *cfg.Config, k8sClient *k8s.Client, resticClient *restic.Client, log *logrus.Logger) (*Manager, error) {
 	// Ensure restic repository is initialized
 	if err := resticClient.EnsureRepository(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ensure restic repository: %v", err)

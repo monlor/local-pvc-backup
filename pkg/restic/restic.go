@@ -40,8 +40,8 @@ func NewClient(s3Endpoint, s3Bucket, s3Path, s3AccessKey, s3SecretKey, s3Region,
 	}
 }
 
-// getRepository returns the S3 repository URL
-func (c *Client) getRepository() string {
+// GetRepository returns the S3 repository URL
+func (c *Client) GetRepository() string {
 	if c.s3Path == "" {
 		return fmt.Sprintf("s3:%s/%s/node-%s", c.s3Endpoint, c.s3Bucket, c.nodeName)
 	}
@@ -62,9 +62,9 @@ func (c *Client) getEnv() []string {
 
 // InitRepository initializes a new restic repository
 func (c *Client) InitRepository(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "restic", "init", "--repo", c.getRepository())
+	cmd := exec.CommandContext(ctx, "restic", "init", "--repo", c.GetRepository())
 	cmd.Env = append(os.Environ(), c.getEnv()...)
-	c.log.Debugf("Executing command: restic init --repo %s", c.getRepository())
+	c.log.Debugf("Executing command: restic init --repo %s", c.GetRepository())
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("failed to initialize repository: %v, output: %s", err, string(output))
@@ -76,7 +76,7 @@ func (c *Client) InitRepository(ctx context.Context) error {
 func (c *Client) Backup(ctx context.Context, sourcePaths []string, excludePatterns []string) error {
 	args := []string{
 		"backup",
-		"--repo", c.getRepository(),
+		"--repo", c.GetRepository(),
 		"--host", c.nodeName,
 	}
 
@@ -121,7 +121,7 @@ func (c *Client) Forget(ctx context.Context, retention string) error {
 
 	args := []string{
 		"forget",
-		"--repo", c.getRepository(),
+		"--repo", c.GetRepository(),
 		"--prune",
 	}
 	args = append(args, keepFlags...)
@@ -141,11 +141,11 @@ func (c *Client) Forget(ctx context.Context, retention string) error {
 
 // Check verifies the repository
 func (c *Client) Check(ctx context.Context) error {
-	cmd := exec.CommandContext(ctx, "restic", "check", "--repo", c.getRepository())
+	cmd := exec.CommandContext(ctx, "restic", "check", "--repo", c.GetRepository())
 	cmd.Env = append(os.Environ(), c.getEnv()...)
 
 	// Log the full command
-	c.log.Debugf("Executing command: restic check --repo %s", c.getRepository())
+	c.log.Debugf("Executing command: restic check --repo %s", c.GetRepository())
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

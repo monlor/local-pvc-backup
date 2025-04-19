@@ -11,14 +11,18 @@ import (
 	"github.com/caarlos0/env/v10"
 	"github.com/monlor/local-pvc-backup/pkg/backup"
 	"github.com/monlor/local-pvc-backup/pkg/config"
+	"github.com/monlor/local-pvc-backup/pkg/k8s"
+	"github.com/monlor/local-pvc-backup/pkg/restic"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
 var (
-	cfg  *config.Config
-	log  *logrus.Logger
-	root = &cobra.Command{
+	cfg          *config.Config
+	log          *logrus.Logger
+	k8sClient    *k8s.Client
+	resticClient *restic.Client
+	root         = &cobra.Command{
 		Use:   "local-pvc-backup",
 		Short: "Local PVC backup tool",
 		Long:  `A tool for backing up local PVCs using restic`,
@@ -45,6 +49,26 @@ func init() {
 		level = logrus.InfoLevel
 	}
 	log.SetLevel(level)
+
+	// Initialize k8s client
+	k8sClient, err = k8s.NewClient(log)
+	if err != nil {
+		log.Fatalf("Failed to create k8s client: %v", err)
+	}
+
+	// Initialize restic client
+	resticClient = restic.NewClient(
+		cfg.S3Config.Endpoint,
+		cfg.S3Config.Bucket,
+		cfg.S3Config.Path,
+		cfg.S3Config.AccessKey,
+		cfg.S3Config.SecretKey,
+		cfg.S3Config.Region,
+		cfg.ResticConfig.Password,
+		cfg.ResticConfig.CachePath,
+		k8sClient.GetNodeName(),
+		log,
+	)
 }
 
 func main() {
@@ -81,7 +105,7 @@ func main() {
 
 func runBackupService() {
 	// Create backup manager
-	manager, err := backup.NewManager(cfg, log)
+	manager, err := backup.NewManager(cfg, k8sClient, resticClient, log)
 	if err != nil {
 		log.Fatalf("Failed to create backup manager: %v", err)
 	}
@@ -112,7 +136,7 @@ func runResticCommand(args []string) {
 
 	// Set environment variables from config
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_REPOSITORY=s3:%s/%s/%s", cfg.S3Config.Endpoint, cfg.S3Config.Bucket, cfg.S3Config.Path))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_REPOSITORY=%s", resticClient.GetRepository()))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_PASSWORD=%s", cfg.ResticConfig.Password))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("RESTIC_CACHE_PATH=%s", cfg.ResticConfig.CachePath))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", cfg.S3Config.AccessKey))
