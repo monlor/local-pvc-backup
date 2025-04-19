@@ -131,6 +131,7 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 				Namespace: pvc.Namespace,
 				Path:      fullPath,
 				Config:    cfg,
+				UID:       string(pvc.UID),
 			}
 		}
 	}
@@ -151,6 +152,7 @@ type PVCInfo struct {
 	Namespace string
 	Path      string
 	Config    config.PVCBackupConfig
+	UID       string
 }
 
 func getBackupConfig(annotations map[string]string) config.PVCBackupConfig {

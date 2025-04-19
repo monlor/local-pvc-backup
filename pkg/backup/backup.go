@@ -135,11 +135,15 @@ func (m *Manager) performBackups(ctx context.Context) error {
 		if patterns := m.processPatterns(pvc.Path, pvc.Config.Exclude); len(patterns) > 0 {
 			excludePatterns = append(excludePatterns, patterns...)
 		}
-	}
 
-	// Execute backup with all PVC paths
-	if err := m.resticClient.Backup(ctx, backupPaths, excludePatterns); err != nil {
-		return fmt.Errorf("failed to backup data directory: %v", err)
+		// Execute backup for this PVC
+		if err := m.resticClient.Backup(ctx, backupPaths, excludePatterns, pvc.UID, pvc.Name, pvc.Namespace); err != nil {
+			return fmt.Errorf("failed to backup PVC %s/%s: %v", pvc.Namespace, pvc.Name, err)
+		}
+
+		// Reset paths and patterns for next PVC
+		backupPaths = backupPaths[:0]
+		excludePatterns = excludePatterns[:0]
 	}
 
 	// Clean up old backups using global retention policy

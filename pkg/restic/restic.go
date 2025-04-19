@@ -73,11 +73,15 @@ func (c *Client) InitRepository(ctx context.Context) error {
 }
 
 // Backup performs a backup of the specified paths
-func (c *Client) Backup(ctx context.Context, sourcePaths []string, excludePatterns []string) error {
+func (c *Client) Backup(ctx context.Context, sourcePaths []string, excludePatterns []string, pvcID, pvcName, namespace string) error {
 	args := []string{
 		"backup",
 		"--repo", c.GetRepository(),
 		"--host", c.nodeName,
+		"--tag", fmt.Sprintf("node=%s", c.nodeName),
+		"--tag", fmt.Sprintf("pvc-id=%s", pvcID),
+		"--tag", fmt.Sprintf("pvc-name=%s", pvcName),
+		"--tag", fmt.Sprintf("namespace=%s", namespace),
 	}
 
 	// Add exclude patterns
