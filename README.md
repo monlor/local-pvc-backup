@@ -110,15 +110,16 @@ spec:
   # ... PVC spec
 ```
 
-### PVC Annotations (Alternative)
+### PVC with Include/Exclude Patterns
 
 ```yaml
 apiVersion: v1  
 kind: PersistentVolumeClaim
 metadata:
   name: my-app-data
-  annotations:
+  labels:
     backup.local-pvc.io/enabled: "true"              # Enable backup for this PVC
+  annotations:
     backup.local-pvc.io/include: "data,conf"         # Optional: Specify directories/files to backup
     backup.local-pvc.io/exclude: "tmp/*,logs/*.log"  # Optional: Exclude patterns
 spec:

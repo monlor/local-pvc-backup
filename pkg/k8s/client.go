@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/monlor/local-pvc-backup/pkg/config"
 	"github.com/sirupsen/logrus"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -80,98 +78,7 @@ func (c *Client) GetConfig() *rest.Config {
 	return c.config
 }
 
-// GetPVCsToBackup returns a list of PVCs that need to be backed up on the current node
-func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
-	// Get pods running on this node
-	pods, err := c.clientset.CoreV1().Pods("").List(ctx, metav1.ListOptions{
-		FieldSelector: fmt.Sprintf("spec.nodeName=%s", c.nodeName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to list pods on node %s: %v", c.nodeName, err)
-	}
 
-	c.log.Debugf("Found %d pods on node %s", len(pods.Items), c.nodeName)
-
-	// Use map to deduplicate PVCs
-	pvcMap := make(map[string]PVCInfo)
-
-	for _, pod := range pods.Items {
-		c.log.Debugf("Processing pod %s/%s", pod.Namespace, pod.Name)
-
-		// Get backup config from pod annotations
-		cfg := GetBackupConfigFromAnnotations(pod.Annotations)
-		if !cfg.Enabled {
-			c.log.Debugf("  - Backup not enabled for pod %s/%s", pod.Namespace, pod.Name)
-			continue
-		}
-
-		// Process pod volumes
-		for _, volume := range pod.Spec.Volumes {
-			if volume.PersistentVolumeClaim == nil {
-				continue
-			}
-
-			pvcName := volume.PersistentVolumeClaim.ClaimName
-			// Create unique key for PVC
-			key := fmt.Sprintf("%s/%s", pod.Namespace, pvcName)
-
-			// Get PVC object
-			pvc, err := c.clientset.CoreV1().PersistentVolumeClaims(pod.Namespace).Get(ctx, pvcName, metav1.GetOptions{})
-			if err != nil {
-				c.log.Errorf("Failed to get PVC %s/%s: %v", pod.Namespace, pvcName, err)
-				continue
-			}
-
-			// Get PV name from PVC
-			if pvc.Spec.VolumeName == "" {
-				c.log.Errorf("PVC %s/%s has no volume name", pod.Namespace, pvcName)
-				continue
-			}
-
-			// Construct the path using PV name
-			pvcPath := fmt.Sprintf("%s_%s_%s", pvc.Spec.VolumeName, pod.Namespace, pvcName)
-			fullPath := filepath.Join("/data", pvcPath)
-
-			c.log.Debugf("  - Checking PVC %s", key)
-			c.log.Debugf("    - PVC name: %s", pvcName)
-			c.log.Debugf("    - PV name: %s", pvc.Spec.VolumeName)
-			c.log.Debugf("    - Full path: %s", fullPath)
-
-			if _, err := os.Stat(fullPath); os.IsNotExist(err) {
-				c.log.Errorf("PVC %s/%s does not exist on node %s", pod.Namespace, pvcName, c.nodeName)
-				continue
-			}
-
-			c.log.Debugf("    - Path exists, adding to backup list")
-
-			pvcMap[key] = PVCInfo{
-				Name:      pvcName,
-				Namespace: pvc.Namespace,
-				Path:      fullPath,
-				Config:    cfg,
-				UID:       string(pvc.UID),
-			}
-		}
-	}
-
-	// Convert map to slice
-	var pvcs []PVCInfo
-	for _, pvc := range pvcMap {
-		pvcs = append(pvcs, pvc)
-	}
-
-	c.log.Debugf("Found %d PVCs to backup", len(pvcs))
-	return pvcs, nil
-}
-
-// PVCInfo contains information about a PVC that needs to be backed up
-type PVCInfo struct {
-	Name      string
-	Namespace string
-	Path      string
-	Config    config.PVCBackupConfig
-	UID       string
-}
 
 // GetBackupConfigFromPVC extracts backup configuration from PVC labels and annotations
 func GetBackupConfigFromPVC(labels, annotations map[string]string) config.PVCBackupConfig {
@@ -194,23 +101,3 @@ func GetBackupConfigFromPVC(labels, annotations map[string]string) config.PVCBac
 	return cfg
 }
 
-// GetBackupConfigFromAnnotations extracts backup configuration from annotations (legacy support)
-// Deprecated: Use GetBackupConfigFromPVC instead
-func GetBackupConfigFromAnnotations(annotations map[string]string) config.PVCBackupConfig {
-	cfg := config.DefaultPVCBackupConfig()
-
-	// Legacy: check enabled from annotations (for pod-level config)
-	if enabled, ok := annotations[config.LabelEnabled]; ok {
-		cfg.Enabled = strings.ToLower(enabled) == "true"
-	}
-
-	if include, ok := annotations[config.AnnotationInclude]; ok {
-		cfg.Include = include
-	}
-
-	if exclude, ok := annotations[config.AnnotationExclude]; ok {
-		cfg.Exclude = exclude
-	}
-
-	return cfg
-}

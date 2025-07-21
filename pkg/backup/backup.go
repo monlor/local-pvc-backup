@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cfg "github.com/monlor/local-pvc-backup/pkg/config"
+	"github.com/monlor/local-pvc-backup/pkg/discovery"
 	"github.com/monlor/local-pvc-backup/pkg/k8s"
 	"github.com/monlor/local-pvc-backup/pkg/restic"
 	"github.com/sirupsen/logrus"
@@ -17,6 +18,7 @@ import (
 type Manager struct {
 	resticClient *restic.Client
 	k8sClient    *k8s.Client
+	discovery    *discovery.Discovery
 	storagePath  string
 	interval     time.Duration
 	retention    string
@@ -30,9 +32,13 @@ func NewManager(config *cfg.Config, k8sClient *k8s.Client, resticClient *restic.
 		return nil, fmt.Errorf("failed to ensure restic repository: %v", err)
 	}
 
+	// Create discovery client
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", config.BackupConfig.StoragePath, log)
+
 	return &Manager{
 		resticClient: resticClient,
 		k8sClient:    k8sClient,
+		discovery:    discoveryClient,
 		storagePath:  config.BackupConfig.StoragePath,
 		interval:     config.BackupConfig.BackupInterval,
 		retention:    config.BackupConfig.Retention,
@@ -47,9 +53,13 @@ func NewManagerWithClients(config *cfg.Config, k8sClient *k8s.Client, resticClie
 		return nil, fmt.Errorf("failed to ensure restic repository: %v", err)
 	}
 
+	// Create discovery client
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", config.BackupConfig.StoragePath, log)
+
 	return &Manager{
 		resticClient: resticClient,
 		k8sClient:    k8sClient,
+		discovery:    discoveryClient,
 		storagePath:  config.BackupConfig.StoragePath,
 		interval:     config.BackupConfig.BackupInterval,
 		retention:    config.BackupConfig.Retention,
@@ -103,13 +113,19 @@ func (m *Manager) processPatterns(basePath, patternStr string) []string {
 
 // performBackups performs the backup operation for all eligible PVCs
 func (m *Manager) performBackups(ctx context.Context) error {
-	pvcs, err := m.k8sClient.GetPVCsToBackup(ctx)
+	// Get backup-enabled PVCs on this node using discovery
+	filter := discovery.FilterOptions{
+		Node: m.k8sClient.GetNodeName(), // Only PVCs on this node
+		All:  false,
+	}
+	
+	pvcs, err := m.discovery.GetPVCsByFilter(ctx, filter)
 	if err != nil {
 		return fmt.Errorf("failed to get PVCs to backup: %v", err)
 	}
 
 	if len(pvcs) == 0 {
-		m.log.Info("No PVCs to backup")
+		m.log.Info("No PVCs to backup on this node")
 		return nil
 	}
 
@@ -119,7 +135,12 @@ func (m *Manager) performBackups(ctx context.Context) error {
 
 	// Add backup paths and exclude rules for each enabled PVC
 	for _, pvc := range pvcs {
-		m.log.Infof("Configuring backup for PVC %s/%s, include: %s, exclude: %s", pvc.Namespace, pvc.Name, pvc.Config.Include, pvc.Config.Exclude)
+		// Skip PVCs that are not backup-enabled
+		if !pvc.BackupEnabled {
+			continue
+		}
+		
+		m.log.Infof("Configuring backup for PVC %s/%s, include: %s, exclude: %s", pvc.Namespace, pvc.PVCName, pvc.Config.Include, pvc.Config.Exclude)
 
 		// Add base PVC path if no include paths specified
 		if pvc.Config.Include == "" {
@@ -137,8 +158,8 @@ func (m *Manager) performBackups(ctx context.Context) error {
 		}
 
 		// Execute backup for this PVC
-		if err := m.resticClient.Backup(ctx, backupPaths, excludePatterns, pvc.UID, pvc.Name, pvc.Namespace); err != nil {
-			return fmt.Errorf("failed to backup PVC %s/%s: %v", pvc.Namespace, pvc.Name, err)
+		if err := m.resticClient.Backup(ctx, backupPaths, excludePatterns, pvc.UID, pvc.PVCName, pvc.Namespace); err != nil {
+			return fmt.Errorf("failed to backup PVC %s/%s: %v", pvc.Namespace, pvc.PVCName, err)
 		}
 
 		// Reset paths and patterns for next PVC
