@@ -1,6 +1,6 @@
 # Local PVC Backup
 
-A lightweight and efficient Kubernetes DaemonSet service designed to automatically backup Local-Path Persistent Volume Claims (PVCs) to S3-compatible storage using restic. Perfect for backing up your stateful applications in Kubernetes with minimal configuration.
+A comprehensive Kubernetes DaemonSet service for automatic PVC backup and management with cross-node operations. Features interactive CLI commands for backup status viewing, snapshots management, and intelligent restore operations across all nodes.
 
 ## ✨ Features
 
@@ -15,7 +15,7 @@ A lightweight and efficient Kubernetes DaemonSet service designed to automatical
 - Deduplication and compression support
 
 ⚙️ **Flexible Configuration**
-- Simple annotation-based backup configuration
+- Label-based backup configuration for efficient K8s API filtering
 - Supports excluding files/directories using restic patterns
 - Configurable backup paths for selective backup
 
@@ -29,16 +29,24 @@ A lightweight and efficient Kubernetes DaemonSet service designed to automatical
 - Supports custom S3 endpoints and regions
 - Optional path prefix for better organization
 
+🌐 **Cross-Node Management**
+- Interactive CLI commands for cross-node operations
+- Unified filtering parameters (--node, --namespace, --pvc, --all)
+- Real-time backup status aggregation from all nodes
+- Smart time-based restore across multiple nodes
+
 ## Command Structure
 
-The service provides two main commands:
+The service provides multiple commands for different use cases:
 
-1. `run`: Start the backup service (used in DaemonSet)
+### Core Service Commands
+
+1. **`run`**: Start the backup service (used in DaemonSet)
 ```bash
 local-pvc-backup run
 ```
 
-2. `restic`: Execute restic commands with injected environment variables
+2. **`restic`**: Execute restic commands with injected environment variables
 ```bash
 local-pvc-backup restic [restic command]
 # Examples:
@@ -47,14 +55,74 @@ local-pvc-backup restic -c
 local-pvc-backup restic backup /path/to/backup
 ```
 
-The `restic` command automatically injects all necessary environment variables from the configuration.
+### Interactive Management Commands
 
-## Annotation Format
+3. **`status`**: View PVC backup status across all nodes
+```bash
+local-pvc-backup status --all
+local-pvc-backup status --namespace app
+local-pvc-backup status --node worker-1 --namespace db
+```
+
+4. **`snapshots`**: List backup snapshots with cross-node aggregation
+```bash
+local-pvc-backup snapshots --namespace app --limit 10
+local-pvc-backup snapshots --pvc data --sort-by time
+local-pvc-backup snapshots --all --output table
+```
+
+5. **`backup`**: Execute immediate backup operations
+```bash
+local-pvc-backup backup --namespace app --pvc data
+local-pvc-backup backup --all --dry-run
+local-pvc-backup backup --node worker-1 --wait
+```
+
+6. **`restore`**: Intelligent time-based restore operations
+```bash
+local-pvc-backup restore --time "2025-07-20 15:30:00" --namespace app --dry-run
+local-pvc-backup restore --snapshot abc123def456 --namespace app --pvc data
+local-pvc-backup restore --time "2025-07-20 15:30:00" --all
+```
+
+### Universal Filter Parameters
+
+All interactive commands support consistent filtering:
+- `--node <node-name>`: Filter by specific node
+- `--namespace <namespace>`: Filter by Kubernetes namespace  
+- `--pvc <pvc-name>`: Filter by PVC name
+- `--all`: Include all backup-enabled PVCs across all nodes
+
+## Configuration Format
+
+### PVC Labels (Recommended)
+
+Use labels for efficient K8s API filtering:
 
 ```yaml
-backup.local-pvc.io/enabled: "true"                  # Enable backup for this PVC
-backup.local-pvc.io/include: "data,conf"             # Optional: Specify directories/files to backup (comma-separated paths)
-backup.local-pvc.io/exclude: "tmp/*,logs/*.log"      # Optional: Exclude patterns (supports restic's pattern format)
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-data
+  labels:
+    backup.local-pvc.io/enabled: "true"              # Enable backup for this PVC
+spec:
+  # ... PVC spec
+```
+
+### PVC Annotations (Alternative)
+
+```yaml
+apiVersion: v1  
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-data
+  annotations:
+    backup.local-pvc.io/enabled: "true"              # Enable backup for this PVC
+    backup.local-pvc.io/include: "data,conf"         # Optional: Specify directories/files to backup
+    backup.local-pvc.io/exclude: "tmp/*,logs/*.log"  # Optional: Exclude patterns
+spec:
+  # ... PVC spec
 ```
 
 ## Pattern Format
@@ -113,34 +181,92 @@ kubectl apply -k deploy/
 
 ## Usage Examples
 
-1. MySQL backup example:
+### PVC Configuration Examples
+
+1. **MySQL backup with label-based configuration:**
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mysql-data
-  annotations:
+  namespace: database
+  labels:
     backup.local-pvc.io/enabled: "true"
+  annotations:
     backup.local-pvc.io/exclude: "tmp/*,*.tmp,*.log,lost+found"
 spec:
   # ... PVC spec
 ```
 
-2. Redis backup example:
+2. **Redis backup with selective inclusion:**
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: redis-data
-  annotations:
+  namespace: cache
+  labels:
     backup.local-pvc.io/enabled: "true"
+  annotations:
+    backup.local-pvc.io/include: "data,conf"
     backup.local-pvc.io/exclude: "temp/*,*.log,lost+found"
 spec:
   # ... PVC spec
 ```
 
+### Interactive Management Examples
+
+1. **Check backup status across all nodes:**
+```bash
+# View all PVC backup status
+local-pvc-backup status --all
+
+# Check specific namespace
+local-pvc-backup status --namespace database
+
+# Check specific node and namespace
+local-pvc-backup status --node worker-1 --namespace app
+```
+
+2. **List and manage snapshots:**
+```bash
+# List recent snapshots for a specific PVC
+local-pvc-backup snapshots --namespace database --pvc mysql-data --limit 5
+
+# List all snapshots sorted by time
+local-pvc-backup snapshots --all --sort-by time --limit 20
+
+# View snapshots for a specific node
+local-pvc-backup snapshots --node worker-2 --output table
+```
+
+3. **Execute backup operations:**
+```bash
+# Backup specific PVC with dry-run
+local-pvc-backup backup --namespace database --pvc mysql-data --dry-run
+
+# Backup all PVCs in a namespace
+local-pvc-backup backup --namespace app --wait
+
+# Backup all PVCs across all nodes
+local-pvc-backup backup --all
+```
+
+4. **Intelligent restore operations:**
+```bash
+# Plan restore to specific time point (dry-run)
+local-pvc-backup restore --time "2025-07-20 15:30:00" --namespace database --dry-run
+
+# Execute time-based restore for all PVCs
+local-pvc-backup restore --time "2025-07-20 15:30:00" --all
+
+# Restore specific PVC from snapshot ID
+local-pvc-backup restore --snapshot abc123def456 --namespace database --pvc mysql-data
+```
+
 ## How it Works
 
+### Automated Backup Service
 1. The service runs as a DaemonSet on each node
 2. It monitors PVCs mounted on the node
 3. For each PVC with backup enabled:
@@ -151,6 +277,13 @@ spec:
    - Maintains backups according to retention policy
 4. Each node has its own restic repository to avoid conflicts
 5. Uses PV name to locate the correct backup directory
+
+### Cross-Node Management
+1. **Service Discovery**: CLI commands discover target nodes using K8s API
+2. **Cross-Node Communication**: Uses K8s exec API to communicate with daemon pods
+3. **Intelligent Filtering**: Efficiently filters PVCs using labels and annotations
+4. **Data Aggregation**: Collects and aggregates results from multiple nodes
+5. **Smart Restore Planning**: Analyzes snapshots across nodes to create optimal restore plans
 
 ## Backup Command Format
 
