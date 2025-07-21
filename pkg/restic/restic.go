@@ -2,10 +2,12 @@ package restic
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -167,5 +169,141 @@ func (c *Client) EnsureRepository(ctx context.Context) error {
 		// If check fails, try to initialize
 		return c.InitRepository(ctx)
 	}
+	return nil
+}
+
+// SnapshotInfo represents information about a restic snapshot
+type SnapshotInfo struct {
+	ID       string            `json:"id"`
+	Time     time.Time         `json:"time"`
+	Tree     string            `json:"tree"`
+	Paths    []string          `json:"paths"`
+	Hostname string            `json:"hostname"`
+	Username string            `json:"username"`
+	UID      int               `json:"uid"`
+	GID      int               `json:"gid"`
+	Tags     []string          `json:"tags"`
+	Parent   string            `json:"parent,omitempty"`
+	Summary  *SnapshotSummary  `json:"summary,omitempty"`
+}
+
+// SnapshotSummary represents the summary information of a snapshot
+type SnapshotSummary struct {
+	FilesNew            int   `json:"files_new"`
+	FilesChanged        int   `json:"files_changed"`
+	FilesUnmodified     int   `json:"files_unmodified"`
+	DirsNew             int   `json:"dirs_new"`
+	DirsChanged         int   `json:"dirs_changed"`
+	DirsUnmodified      int   `json:"dirs_unmodified"`
+	DataBlobs           int   `json:"data_blobs"`
+	TreeBlobs           int   `json:"tree_blobs"`
+	DataAdded           int64 `json:"data_added"`
+	TotalFilesProcessed int   `json:"total_files_processed"`
+	TotalBytesProcessed int64 `json:"total_bytes_processed"`
+	TotalDuration       int64 `json:"total_duration"`
+	SnapshotID          string `json:"snapshot_id"`
+}
+
+// ListSnapshots returns all snapshots in the repository
+func (c *Client) ListSnapshots(ctx context.Context) ([]SnapshotInfo, error) {
+	args := []string{
+		"snapshots",
+		"--repo", c.GetRepository(),
+		"--json",
+	}
+
+	cmd := exec.CommandContext(ctx, "restic", args...)
+	cmd.Env = append(os.Environ(), c.getEnv()...)
+
+	c.log.Debugf("Executing command: restic %s", strings.Join(args, " "))
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list snapshots: %v, output: %s", err, string(output))
+	}
+
+	var snapshots []SnapshotInfo
+	if err := json.Unmarshal(output, &snapshots); err != nil {
+		return nil, fmt.Errorf("failed to parse snapshots JSON: %v", err)
+	}
+
+	return snapshots, nil
+}
+
+// ListSnapshotsByPVC returns snapshots for a specific PVC
+func (c *Client) ListSnapshotsByPVC(ctx context.Context, pvcID string) ([]SnapshotInfo, error) {
+	args := []string{
+		"snapshots",
+		"--repo", c.GetRepository(),
+		"--json",
+		"--tag", fmt.Sprintf("pvc-id=%s", pvcID),
+	}
+
+	cmd := exec.CommandContext(ctx, "restic", args...)
+	cmd.Env = append(os.Environ(), c.getEnv()...)
+
+	c.log.Debugf("Executing command: restic %s", strings.Join(args, " "))
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list snapshots for PVC %s: %v, output: %s", pvcID, err, string(output))
+	}
+
+	var snapshots []SnapshotInfo
+	if err := json.Unmarshal(output, &snapshots); err != nil {
+		return nil, fmt.Errorf("failed to parse snapshots JSON: %v", err)
+	}
+
+	return snapshots, nil
+}
+
+// FindSnapshotByTime finds the snapshot closest to (but not after) the target time
+func (c *Client) FindSnapshotByTime(ctx context.Context, pvcID string, targetTime time.Time) (*SnapshotInfo, error) {
+	snapshots, err := c.ListSnapshotsByPVC(ctx, pvcID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(snapshots) == 0 {
+		return nil, fmt.Errorf("no snapshots found for PVC %s", pvcID)
+	}
+
+	// Find the snapshot with the latest time that is still before or equal to targetTime
+	var closest *SnapshotInfo
+	for i := range snapshots {
+		snapshot := &snapshots[i]
+		if snapshot.Time.Before(targetTime) || snapshot.Time.Equal(targetTime) {
+			if closest == nil || snapshot.Time.After(closest.Time) {
+				closest = snapshot
+			}
+		}
+	}
+
+	if closest == nil {
+		return nil, fmt.Errorf("no snapshot found before time %s for PVC %s", targetTime.Format(time.RFC3339), pvcID)
+	}
+
+	return closest, nil
+}
+
+// RestoreSnapshot restores a specific snapshot to a target path
+func (c *Client) RestoreSnapshot(ctx context.Context, snapshotID string, targetPath string) error {
+	args := []string{
+		"restore",
+		snapshotID,
+		"--repo", c.GetRepository(),
+		"--target", targetPath,
+	}
+
+	cmd := exec.CommandContext(ctx, "restic", args...)
+	cmd.Env = append(os.Environ(), c.getEnv()...)
+
+	c.log.Debugf("Executing command: restic %s", strings.Join(args, " "))
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("failed to restore snapshot %s: %v, output: %s", snapshotID, err, string(output))
+	}
+
 	return nil
 }

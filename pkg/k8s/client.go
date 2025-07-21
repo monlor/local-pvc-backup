@@ -19,6 +19,7 @@ import (
 // Client represents a Kubernetes client wrapper
 type Client struct {
 	clientset *kubernetes.Clientset
+	config    *rest.Config
 	nodeName  string
 	log       *logrus.Logger
 }
@@ -52,6 +53,7 @@ func NewClient(log *logrus.Logger) (*Client, error) {
 
 	return &Client{
 		clientset: clientset,
+		config:    config,
 		nodeName:  nodeName,
 		log:       log,
 	}, nil
@@ -60,6 +62,16 @@ func NewClient(log *logrus.Logger) (*Client, error) {
 // GetNodeName returns the current node name
 func (c *Client) GetNodeName() string {
 	return c.nodeName
+}
+
+// GetClientset returns the Kubernetes clientset
+func (c *Client) GetClientset() kubernetes.Interface {
+	return c.clientset
+}
+
+// GetConfig returns the Kubernetes config
+func (c *Client) GetConfig() *rest.Config {
+	return c.config
 }
 
 // GetPVCsToBackup returns a list of PVCs that need to be backed up on the current node
@@ -81,7 +93,7 @@ func (c *Client) GetPVCsToBackup(ctx context.Context) ([]PVCInfo, error) {
 		c.log.Debugf("Processing pod %s/%s", pod.Namespace, pod.Name)
 
 		// Get backup config from pod annotations
-		cfg := getBackupConfig(pod.Annotations)
+		cfg := GetBackupConfigFromAnnotations(pod.Annotations)
 		if !cfg.Enabled {
 			c.log.Debugf("  - Backup not enabled for pod %s/%s", pod.Namespace, pod.Name)
 			continue
@@ -155,10 +167,34 @@ type PVCInfo struct {
 	UID       string
 }
 
-func getBackupConfig(annotations map[string]string) config.PVCBackupConfig {
+// GetBackupConfigFromPVC extracts backup configuration from PVC labels and annotations
+func GetBackupConfigFromPVC(labels, annotations map[string]string) config.PVCBackupConfig {
 	cfg := config.DefaultPVCBackupConfig()
 
-	if enabled, ok := annotations[config.AnnotationEnabled]; ok {
+	// Check enabled flag from labels
+	if enabled, ok := labels[config.LabelEnabled]; ok {
+		cfg.Enabled = strings.ToLower(enabled) == "true"
+	}
+
+	// Check include/exclude patterns from annotations
+	if include, ok := annotations[config.AnnotationInclude]; ok {
+		cfg.Include = include
+	}
+
+	if exclude, ok := annotations[config.AnnotationExclude]; ok {
+		cfg.Exclude = exclude
+	}
+
+	return cfg
+}
+
+// GetBackupConfigFromAnnotations extracts backup configuration from annotations (legacy support)
+// Deprecated: Use GetBackupConfigFromPVC instead
+func GetBackupConfigFromAnnotations(annotations map[string]string) config.PVCBackupConfig {
+	cfg := config.DefaultPVCBackupConfig()
+
+	// Legacy: check enabled from annotations (for pod-level config)
+	if enabled, ok := annotations[config.LabelEnabled]; ok {
 		cfg.Enabled = strings.ToLower(enabled) == "true"
 	}
 

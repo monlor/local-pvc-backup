@@ -35,15 +35,17 @@ type BackupConfig struct {
 	Retention      string        `env:"RETENTION" envDefault:"14d"` // Retention policy: keep backups within 7 days, 30 days, and 365 days
 }
 
-// Annotations for backup configuration
+// Labels and Annotations for backup configuration
 const (
-	// Base annotation prefix
-	AnnotationPrefix = "backup.local-pvc.io"
+	// Base prefix
+	Prefix = "backup.local-pvc.io"
 
-	// Specific annotations
-	AnnotationEnabled = AnnotationPrefix + "/enabled"
-	AnnotationInclude = AnnotationPrefix + "/include"
-	AnnotationExclude = AnnotationPrefix + "/exclude"
+	// PVC Labels (for enabled flag - allows efficient K8s API filtering)
+	LabelEnabled = Prefix + "/enabled"
+
+	// PVC Annotations (for detailed configuration)
+	AnnotationInclude = Prefix + "/include"
+	AnnotationExclude = Prefix + "/exclude"
 )
 
 // PVCBackupConfig represents the backup configuration for a specific PVC
