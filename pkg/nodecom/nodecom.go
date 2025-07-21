@@ -175,7 +175,7 @@ func (ne *NodeExecutor) ExecuteOnNodesWithPVCs(ctx context.Context, nodeNames []
 // findDaemonPodOnNode finds the daemon pod running on a specific node
 func (ne *NodeExecutor) findDaemonPodOnNode(ctx context.Context, nodeName string) (*corev1.Pod, error) {
 	pods, err := ne.k8sClient.CoreV1().Pods(ne.daemonSetNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%s", ne.daemonSetName),
+		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", ne.daemonSetName),
 		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
 	})
 	if err != nil {
@@ -199,7 +199,7 @@ func (ne *NodeExecutor) findDaemonPodOnNode(ctx context.Context, nodeName string
 // getNodesWithDaemonPods returns all nodes that have daemon pods
 func (ne *NodeExecutor) getNodesWithDaemonPods(ctx context.Context) ([]string, error) {
 	pods, err := ne.k8sClient.CoreV1().Pods(ne.daemonSetNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app=%s", ne.daemonSetName),
+		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", ne.daemonSetName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to list daemon pods: %v", err)
