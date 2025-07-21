@@ -81,7 +81,7 @@ func runStatus(ctx context.Context, k8sClient kubernetes.Interface, opts *Status
 	// TODO: Make these configurable
 	storagePath := "/data"
 	daemonSetName := "local-pvc-backup"
-	daemonSetNamespace := "kube-system"
+	daemonSetNamespace := "default"
 	
 	discoveryClient := discovery.NewDiscovery(k8sClient, daemonSetName, daemonSetNamespace, storagePath, log)
 

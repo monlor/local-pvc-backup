@@ -354,7 +354,7 @@ func handleNodeExecStatus(ctx context.Context, namespace, pvc string) map[string
 		All:       namespace == "" && pvc == "",
 	}
 	
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "kube-system", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", "/data", log)
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, filter)
 	if err != nil {
 		return map[string]interface{}{
@@ -411,7 +411,7 @@ func handleNodeExecSnapshots(ctx context.Context, namespace, pvc string) map[str
 		All:       namespace == "" && pvc == "",
 	}
 	
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "kube-system", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", "/data", log)
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, filter)
 	if err != nil {
 		return map[string]interface{}{
@@ -456,7 +456,7 @@ func handleNodeExecBackup(ctx context.Context, namespace, pvc string) map[string
 		All:       namespace == "" && pvc == "",
 	}
 	
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "kube-system", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", "/data", log)
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, filter)
 	if err != nil {
 		return map[string]interface{}{

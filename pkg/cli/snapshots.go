@@ -60,10 +60,10 @@ func runSnapshots(ctx context.Context, k8sClient kubernetes.Interface, config *r
 	log.Debugf("Running snapshots command with filter: %s", opts.FilterOptions.String())
 
 	// Create node executor for cross-node communication
-	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, config, "local-pvc-backup", "kube-system", log)
+	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, config, "local-pvc-backup", "default", log)
 
 	// Create discovery client to find nodes with relevant PVCs
-	discoveryClient := discovery.NewDiscovery(k8sClient, "local-pvc-backup", "kube-system", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient, "local-pvc-backup", "default", "/data", log)
 
 	var targetNodes []string
 	if opts.FilterOptions.All {

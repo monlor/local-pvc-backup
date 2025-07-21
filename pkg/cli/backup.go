@@ -57,10 +57,10 @@ func runBackup(ctx context.Context, k8sClient kubernetes.Interface, config *rest
 	log.Debugf("Running backup command with filter: %s", opts.FilterOptions.String())
 
 	// Create node executor for cross-node communication
-	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, config, "local-pvc-backup", "kube-system", log)
+	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, config, "local-pvc-backup", "default", log)
 
 	// Create discovery client to find PVCs and their nodes
-	discoveryClient := discovery.NewDiscovery(k8sClient, "local-pvc-backup", "kube-system", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient, "local-pvc-backup", "default", "/data", log)
 
 	// Get PVCs matching the filter to determine what needs to be backed up
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, discovery.FilterOptions{
