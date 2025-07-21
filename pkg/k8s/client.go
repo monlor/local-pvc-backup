@@ -49,12 +49,6 @@ func NewClient(log *logrus.Logger) (*Client, error) {
 		return nil, fmt.Errorf("failed to create k8s client: %v", err)
 	}
 
-	// Get current node name from environment
-	nodeName := os.Getenv("KUBERNETES_NODE_NAME")
-	if nodeName == "" {
-		return nil, fmt.Errorf("KUBERNETES_NODE_NAME environment variable not set")
-	}
-
 	return &Client{
 		clientset: clientset,
 		config:    config,
