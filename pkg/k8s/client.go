@@ -40,6 +40,12 @@ func NewClient(log *logrus.Logger) (*Client, error) {
 		}
 	}
 
+	// Configure rate limiting to avoid nil pointer issues
+	if config.RateLimiter == nil {
+		config.QPS = 50
+		config.Burst = 100
+	}
+
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create k8s client: %v", err)

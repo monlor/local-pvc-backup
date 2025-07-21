@@ -135,7 +135,14 @@ func main() {
 			if err := initializeClients(); err != nil {
 				return err
 			}
+			// Ensure we have a proper context
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
 			actualCmd := cli.NewStatusEnhancedCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			// Set context on the actual command
+			actualCmd.SetContext(ctx)
 			// Copy flag values
 			actualCmd.Flags().Set("all", cmd.Flag("all").Value.String())
 			actualCmd.Flags().Set("namespace", cmd.Flag("namespace").Value.String())
@@ -157,7 +164,14 @@ func main() {
 			if err := initializeClients(); err != nil {
 				return err
 			}
+			// Ensure we have a proper context
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
 			actualCmd := cli.NewSnapshotsCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			// Set context on the actual command
+			actualCmd.SetContext(ctx)
 			// Copy flag values
 			actualCmd.Flags().Set("all", cmd.Flag("all").Value.String())
 			actualCmd.Flags().Set("namespace", cmd.Flag("namespace").Value.String())
@@ -181,7 +195,14 @@ func main() {
 			if err := initializeClients(); err != nil {
 				return err
 			}
+			// Ensure we have a proper context
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
 			actualCmd := cli.NewBackupCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			// Set context on the actual command
+			actualCmd.SetContext(ctx)
 			// Copy flag values
 			actualCmd.Flags().Set("all", cmd.Flag("all").Value.String())
 			actualCmd.Flags().Set("namespace", cmd.Flag("namespace").Value.String())
@@ -204,7 +225,14 @@ func main() {
 			if err := initializeClients(); err != nil {
 				return err
 			}
+			// Ensure we have a proper context
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
 			actualCmd := cli.NewRestoreCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			// Set context on the actual command
+			actualCmd.SetContext(ctx)
 			// Copy flag values
 			actualCmd.Flags().Set("all", cmd.Flag("all").Value.String())
 			actualCmd.Flags().Set("namespace", cmd.Flag("namespace").Value.String())

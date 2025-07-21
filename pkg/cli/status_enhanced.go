@@ -48,6 +48,11 @@ func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, config *rest.Confi
 }
 
 func runStatusEnhanced(ctx context.Context, k8sClient kubernetes.Interface, config *rest.Config, opts *StatusEnhancedOptions, log *logrus.Logger) error {
+	// Ensure we have a valid context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
 	// Validate filter options
 	if err := opts.FilterOptions.Validate(); err != nil {
 		return fmt.Errorf("invalid filter options: %v", err)
