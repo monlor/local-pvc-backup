@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -23,36 +22,36 @@ type Client struct {
 }
 
 // NewClient creates a new Kubernetes client
-func NewClient(log *logrus.Logger) (*Client, error) {
-	var config *rest.Config
+func NewClient(cfg *config.Config, log *logrus.Logger) (*Client, error) {
+	var k8sConfig *rest.Config
 	var err error
 
 	// Try in-cluster config first
-	config, err = rest.InClusterConfig()
+	k8sConfig, err = rest.InClusterConfig()
 	if err != nil {
 		// Fall back to kubeconfig
 		kubeconfig := filepath.Join(homedir.HomeDir(), ".kube", "config")
-		config, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		k8sConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create k8s config: %v", err)
 		}
 	}
 
 	// Configure rate limiting to avoid nil pointer issues
-	if config.RateLimiter == nil {
-		config.QPS = 50
-		config.Burst = 100
+	if k8sConfig.RateLimiter == nil {
+		k8sConfig.QPS = 50
+		k8sConfig.Burst = 100
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(k8sConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create k8s client: %v", err)
 	}
 
 	return &Client{
 		clientset: clientset,
-		config:    config,
-		nodeName:  nodeName,
+		config:    k8sConfig,
+		nodeName:  cfg.KubernetesConfig.NodeName,
 		log:       log,
 	}, nil
 }

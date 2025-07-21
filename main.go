@@ -63,7 +63,7 @@ func initializeClients() error {
 	log.SetLevel(level)
 
 	// Initialize k8s client
-	k8sClient, err = k8s.NewClient(log)
+	k8sClient, err = k8s.NewClient(cfg, log)
 	if err != nil {
 		return fmt.Errorf("failed to create k8s client: %v", err)
 	}
