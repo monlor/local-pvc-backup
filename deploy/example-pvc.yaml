@@ -1,0 +1,59 @@
+# Example PVC configurations for local-pvc-backup
+
+---
+# Example 1: MySQL PVC with label-based backup enabled
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-data
+  namespace: database
+  labels:
+    backup.local-pvc.io/enabled: "true"
+  annotations:
+    backup.local-pvc.io/exclude: "tmp/*,*.tmp,*.log,lost+found"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-path
+
+---
+# Example 2: Redis PVC with selective backup
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: redis-data
+  namespace: cache
+  labels:
+    backup.local-pvc.io/enabled: "true"
+  annotations:
+    backup.local-pvc.io/include: "data,conf"
+    backup.local-pvc.io/exclude: "temp/*,*.log,lost+found"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-path
+
+---
+# Example 3: Application PVC with comprehensive exclusions
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-data
+  namespace: application
+  labels:
+    backup.local-pvc.io/enabled: "true"
+  annotations:
+    backup.local-pvc.io/exclude: "cache/*,tmp/*,*.tmp,*.log,node_modules/*,vendor/*"
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: local-path

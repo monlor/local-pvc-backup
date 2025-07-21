@@ -20,6 +20,15 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            # Cross-node communication configuration
+            - name: DISCOVERY_MODE
+              value: "k8s-api"
+            - name: DAEMONSET_NAME
+              value: "local-pvc-backup"
+            - name: DAEMONSET_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
             # S3 Configuration
             - name: S3_ENDPOINT
               valueFrom:
