@@ -50,6 +50,9 @@ func initializeClients() error {
 	if err := env.Parse(cfg); err != nil {
 		return fmt.Errorf("failed to parse environment variables: %v", err)
 	}
+	
+	// Initialize backward compatibility
+	cfg.InitializeCompatibility()
 
 	// Set log level
 	level, err := logrus.ParseLevel(cfg.BackupConfig.LogLevel)
@@ -81,6 +84,7 @@ func initializeClients() error {
 	
 	return nil
 }
+
 
 func main() {
 	// Add run command
@@ -126,7 +130,7 @@ func main() {
 	}
 
 	// Add enhanced status command - create template and copy flags
-	statusTemplate := cli.NewStatusEnhancedCommand(nil, nil, log)
+	statusTemplate := cli.NewStatusEnhancedCommand(nil, nil, nil, log)
 	statusCmd := &cobra.Command{
 		Use:   statusTemplate.Use,
 		Short: statusTemplate.Short,
@@ -140,7 +144,7 @@ func main() {
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			actualCmd := cli.NewStatusEnhancedCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			actualCmd := cli.NewStatusEnhancedCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), cfg, log)
 			// Set context on the actual command
 			actualCmd.SetContext(ctx)
 			// Copy flag values
@@ -155,7 +159,7 @@ func main() {
 	statusCmd.Flags().AddFlagSet(statusTemplate.Flags())
 
 	// Add snapshots command - create template and copy flags
-	snapshotsTemplate := cli.NewSnapshotsCommand(nil, nil, log)
+	snapshotsTemplate := cli.NewSnapshotsCommand(nil, nil, nil, log)
 	snapshotsCmd := &cobra.Command{
 		Use:   snapshotsTemplate.Use,
 		Short: snapshotsTemplate.Short,
@@ -169,7 +173,7 @@ func main() {
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			actualCmd := cli.NewSnapshotsCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			actualCmd := cli.NewSnapshotsCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), cfg, log)
 			// Set context on the actual command
 			actualCmd.SetContext(ctx)
 			// Copy flag values
@@ -186,7 +190,7 @@ func main() {
 	snapshotsCmd.Flags().AddFlagSet(snapshotsTemplate.Flags())
 
 	// Add backup command - create template and copy flags
-	backupTemplate := cli.NewBackupCommand(nil, nil, log)
+	backupTemplate := cli.NewBackupCommand(nil, nil, nil, log)
 	backupCmd := &cobra.Command{
 		Use:   backupTemplate.Use,
 		Short: backupTemplate.Short,
@@ -200,7 +204,7 @@ func main() {
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			actualCmd := cli.NewBackupCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			actualCmd := cli.NewBackupCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), cfg, log)
 			// Set context on the actual command
 			actualCmd.SetContext(ctx)
 			// Copy flag values
@@ -216,7 +220,7 @@ func main() {
 	backupCmd.Flags().AddFlagSet(backupTemplate.Flags())
 
 	// Add restore command - create template and copy flags
-	restoreTemplate := cli.NewRestoreCommand(nil, nil, log)
+	restoreTemplate := cli.NewRestoreCommand(nil, nil, nil, log)
 	restoreCmd := &cobra.Command{
 		Use:   restoreTemplate.Use,
 		Short: restoreTemplate.Short,
@@ -230,7 +234,7 @@ func main() {
 			if ctx == nil {
 				ctx = context.Background()
 			}
-			actualCmd := cli.NewRestoreCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), log)
+			actualCmd := cli.NewRestoreCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), cfg, log)
 			// Set context on the actual command
 			actualCmd.SetContext(ctx)
 			// Copy flag values
@@ -354,7 +358,7 @@ func handleNodeExecStatus(ctx context.Context, namespace, pvc string) map[string
 		All:       namespace == "" && pvc == "",
 	}
 	
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), cfg.KubernetesConfig.DaemonSetName, cfg.KubernetesConfig.PodNamespace, cfg.BackupConfig.StoragePath, log)
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, filter)
 	if err != nil {
 		return map[string]interface{}{
@@ -411,7 +415,7 @@ func handleNodeExecSnapshots(ctx context.Context, namespace, pvc string) map[str
 		All:       namespace == "" && pvc == "",
 	}
 	
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), cfg.KubernetesConfig.DaemonSetName, cfg.KubernetesConfig.PodNamespace, cfg.BackupConfig.StoragePath, log)
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, filter)
 	if err != nil {
 		return map[string]interface{}{
@@ -456,7 +460,7 @@ func handleNodeExecBackup(ctx context.Context, namespace, pvc string) map[string
 		All:       namespace == "" && pvc == "",
 	}
 	
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), cfg.KubernetesConfig.DaemonSetName, cfg.KubernetesConfig.PodNamespace, cfg.BackupConfig.StoragePath, log)
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, filter)
 	if err != nil {
 		return map[string]interface{}{

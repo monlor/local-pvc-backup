@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	cfg "github.com/monlor/local-pvc-backup/pkg/config"
 	"github.com/monlor/local-pvc-backup/pkg/discovery"
 	"github.com/monlor/local-pvc-backup/pkg/nodecom"
 	"github.com/sirupsen/logrus"
@@ -25,7 +26,7 @@ type SnapshotsOptions struct {
 }
 
 // NewSnapshotsCommand creates the snapshots command
-func NewSnapshotsCommand(k8sClient kubernetes.Interface, config *rest.Config, log *logrus.Logger) *cobra.Command {
+func NewSnapshotsCommand(k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, log *logrus.Logger) *cobra.Command {
 	opts := &SnapshotsOptions{}
 
 	cmd := &cobra.Command{
@@ -36,7 +37,7 @@ func NewSnapshotsCommand(k8sClient kubernetes.Interface, config *rest.Config, lo
 			if k8sClient == nil {
 				return fmt.Errorf("kubernetes client not initialized")
 			}
-			return runSnapshots(cmd.Context(), k8sClient, config, opts, log)
+			return runSnapshots(cmd.Context(), k8sClient, restConfig, appConfig, opts, log)
 		},
 	}
 
@@ -51,7 +52,7 @@ func NewSnapshotsCommand(k8sClient kubernetes.Interface, config *rest.Config, lo
 	return cmd
 }
 
-func runSnapshots(ctx context.Context, k8sClient kubernetes.Interface, config *rest.Config, opts *SnapshotsOptions, log *logrus.Logger) error {
+func runSnapshots(ctx context.Context, k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, opts *SnapshotsOptions, log *logrus.Logger) error {
 	// Validate filter options
 	if err := opts.FilterOptions.Validate(); err != nil {
 		return fmt.Errorf("invalid filter options: %v", err)
@@ -59,11 +60,14 @@ func runSnapshots(ctx context.Context, k8sClient kubernetes.Interface, config *r
 
 	log.Debugf("Running snapshots command with filter: %s", opts.FilterOptions.String())
 
+	// Get DaemonSet configuration from application config
+	log.Debugf("Using DaemonSet: name=%s, namespace=%s, storage=%s", appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath)
+
 	// Create node executor for cross-node communication
-	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, config, "local-pvc-backup", "default", log)
+	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, restConfig, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, log)
 
 	// Create discovery client to find nodes with relevant PVCs
-	discoveryClient := discovery.NewDiscovery(k8sClient, "local-pvc-backup", "default", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath, log)
 
 	var targetNodes []string
 	if opts.FilterOptions.All {

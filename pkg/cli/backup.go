@@ -7,6 +7,7 @@ import (
 	"sort"
 	"text/tabwriter"
 
+	cfg "github.com/monlor/local-pvc-backup/pkg/config"
 	"github.com/monlor/local-pvc-backup/pkg/discovery"
 	"github.com/monlor/local-pvc-backup/pkg/nodecom"
 	"github.com/sirupsen/logrus"
@@ -23,7 +24,7 @@ type BackupOptions struct {
 }
 
 // NewBackupCommand creates the backup command
-func NewBackupCommand(k8sClient kubernetes.Interface, config *rest.Config, log *logrus.Logger) *cobra.Command {
+func NewBackupCommand(k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, log *logrus.Logger) *cobra.Command {
 	opts := &BackupOptions{}
 
 	cmd := &cobra.Command{
@@ -34,7 +35,7 @@ func NewBackupCommand(k8sClient kubernetes.Interface, config *rest.Config, log *
 			if k8sClient == nil {
 				return fmt.Errorf("kubernetes client not initialized")
 			}
-			return runBackup(cmd.Context(), k8sClient, config, opts, log)
+			return runBackup(cmd.Context(), k8sClient, restConfig, appConfig, opts, log)
 		},
 	}
 
@@ -48,7 +49,7 @@ func NewBackupCommand(k8sClient kubernetes.Interface, config *rest.Config, log *
 	return cmd
 }
 
-func runBackup(ctx context.Context, k8sClient kubernetes.Interface, config *rest.Config, opts *BackupOptions, log *logrus.Logger) error {
+func runBackup(ctx context.Context, k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, opts *BackupOptions, log *logrus.Logger) error {
 	// Validate filter options
 	if err := opts.FilterOptions.Validate(); err != nil {
 		return fmt.Errorf("invalid filter options: %v", err)
@@ -56,11 +57,14 @@ func runBackup(ctx context.Context, k8sClient kubernetes.Interface, config *rest
 
 	log.Debugf("Running backup command with filter: %s", opts.FilterOptions.String())
 
+	// Get DaemonSet configuration from application config
+	log.Debugf("Using DaemonSet: name=%s, namespace=%s, storage=%s", appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath)
+
 	// Create node executor for cross-node communication
-	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, config, "local-pvc-backup", "default", log)
+	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, restConfig, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, log)
 
 	// Create discovery client to find PVCs and their nodes
-	discoveryClient := discovery.NewDiscovery(k8sClient, "local-pvc-backup", "default", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath, log)
 
 	// Get PVCs matching the filter to determine what needs to be backed up
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, discovery.FilterOptions{

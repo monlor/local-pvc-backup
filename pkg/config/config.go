@@ -1,14 +1,16 @@
 package config
 
 import (
+	"os"
 	"time"
 )
 
 // Config represents the main configuration for the backup service
 type Config struct {
-	S3Config     S3Config     `envPrefix:"S3_"`
-	BackupConfig BackupConfig `envPrefix:"BACKUP_"`
-	ResticConfig ResticConfig `envPrefix:"RESTIC_"`
+	S3Config         S3Config         `envPrefix:"S3_"`
+	BackupConfig     BackupConfig     `envPrefix:"BACKUP_"`
+	ResticConfig     ResticConfig     `envPrefix:"RESTIC_"`
+	KubernetesConfig KubernetesConfig `envPrefix:"KUBERNETES_"`
 }
 
 // S3Config holds the S3 storage configuration
@@ -33,6 +35,13 @@ type BackupConfig struct {
 	LogLevel       string        `env:"LOG_LEVEL" envDefault:"info"`
 	BackupInterval time.Duration `env:"INTERVAL" envDefault:"1h"`   // Backup interval
 	Retention      string        `env:"RETENTION" envDefault:"14d"` // Retention policy: keep backups within 7 days, 30 days, and 365 days
+}
+
+// KubernetesConfig holds the Kubernetes-related configuration
+type KubernetesConfig struct {
+	PodNamespace  string `env:"POD_NAMESPACE" envDefault:"default"`          // Current pod's namespace (from KUBERNETES_POD_NAMESPACE)
+	DaemonSetName string `env:"DAEMONSET_NAME" envDefault:"local-pvc-backup"` // DaemonSet name for cross-node communication
+	NodeName      string `env:"NODE_NAME"`                                    // Current node name (from KUBERNETES_NODE_NAME)
 }
 
 // Labels and Annotations for backup configuration
@@ -61,5 +70,16 @@ func DefaultPVCBackupConfig() PVCBackupConfig {
 		Enabled: false,
 		Include: "",
 		Exclude: "",
+	}
+}
+
+// InitializeCompatibility sets up backward compatibility for environment variables
+func (c *Config) InitializeCompatibility() {
+	// Handle backward compatibility for namespace
+	if c.KubernetesConfig.PodNamespace == "default" {
+		// Check for the old DAEMONSET_NAMESPACE variable as fallback
+		if oldNamespace := os.Getenv("DAEMONSET_NAMESPACE"); oldNamespace != "" {
+			c.KubernetesConfig.PodNamespace = oldNamespace
+		}
 	}
 }

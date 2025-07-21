@@ -14,6 +14,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+
 // Manager handles the backup operations
 type Manager struct {
 	resticClient *restic.Client
@@ -33,7 +34,7 @@ func NewManager(config *cfg.Config, k8sClient *k8s.Client, resticClient *restic.
 	}
 
 	// Create discovery client
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", config.BackupConfig.StoragePath, log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), config.KubernetesConfig.DaemonSetName, config.KubernetesConfig.PodNamespace, config.BackupConfig.StoragePath, log)
 
 	return &Manager{
 		resticClient: resticClient,
@@ -54,7 +55,7 @@ func NewManagerWithClients(config *cfg.Config, k8sClient *k8s.Client, resticClie
 	}
 
 	// Create discovery client
-	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), "local-pvc-backup", "default", config.BackupConfig.StoragePath, log)
+	discoveryClient := discovery.NewDiscovery(k8sClient.GetClientset(), config.KubernetesConfig.DaemonSetName, config.KubernetesConfig.PodNamespace, config.BackupConfig.StoragePath, log)
 
 	return &Manager{
 		resticClient: resticClient,

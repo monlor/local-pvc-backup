@@ -6,6 +6,7 @@ import (
 	"os"
 	"text/tabwriter"
 
+	cfg "github.com/monlor/local-pvc-backup/pkg/config"
 	"github.com/monlor/local-pvc-backup/pkg/discovery"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -29,7 +30,7 @@ func (opts *StatusOptions) convertToDiscoveryFilter() discovery.FilterOptions {
 }
 
 // RunStatusCommand runs the status command with the given parameters
-func RunStatusCommand(ctx context.Context, k8sClient kubernetes.Interface, cmd *cobra.Command, log *logrus.Logger) error {
+func RunStatusCommand(ctx context.Context, k8sClient kubernetes.Interface, appConfig *cfg.Config, cmd *cobra.Command, log *logrus.Logger) error {
 	opts := &StatusOptions{}
 
 	// Add filter flags to the command if not already added
@@ -41,11 +42,11 @@ func RunStatusCommand(ctx context.Context, k8sClient kubernetes.Interface, cmd *
 		return err
 	}
 
-	return runStatus(ctx, k8sClient, opts, log)
+	return runStatus(ctx, k8sClient, appConfig, opts, log)
 }
 
 // NewStatusCommand creates the status command
-func NewStatusCommand(k8sClient kubernetes.Interface, log *logrus.Logger) *cobra.Command {
+func NewStatusCommand(k8sClient kubernetes.Interface, appConfig *cfg.Config, log *logrus.Logger) *cobra.Command {
 	opts := &StatusOptions{}
 
 	cmd := &cobra.Command{
@@ -56,7 +57,7 @@ func NewStatusCommand(k8sClient kubernetes.Interface, log *logrus.Logger) *cobra
 			if k8sClient == nil {
 				return fmt.Errorf("kubernetes client not initialized")
 			}
-			return runStatus(cmd.Context(), k8sClient, opts, log)
+			return runStatus(cmd.Context(), k8sClient, appConfig, opts, log)
 		},
 	}
 
@@ -69,7 +70,7 @@ func NewStatusCommand(k8sClient kubernetes.Interface, log *logrus.Logger) *cobra
 	return cmd
 }
 
-func runStatus(ctx context.Context, k8sClient kubernetes.Interface, opts *StatusOptions, log *logrus.Logger) error {
+func runStatus(ctx context.Context, k8sClient kubernetes.Interface, appConfig *cfg.Config, opts *StatusOptions, log *logrus.Logger) error {
 	// Validate filter options
 	if err := opts.FilterOptions.Validate(); err != nil {
 		return fmt.Errorf("invalid filter options: %v", err)
@@ -77,13 +78,10 @@ func runStatus(ctx context.Context, k8sClient kubernetes.Interface, opts *Status
 
 	log.Debugf("Running status command with filter: %s", opts.FilterOptions.String())
 
-	// Create discovery client
-	// TODO: Make these configurable
-	storagePath := "/data"
-	daemonSetName := "local-pvc-backup"
-	daemonSetNamespace := "default"
+	// Get DaemonSet configuration from application config
+	log.Debugf("Using DaemonSet: name=%s, namespace=%s, storage=%s", appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath)
 	
-	discoveryClient := discovery.NewDiscovery(k8sClient, daemonSetName, daemonSetNamespace, storagePath, log)
+	discoveryClient := discovery.NewDiscovery(k8sClient, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath, log)
 
 	// Get PVCs matching the filter
 	pvcs, err := discoveryClient.GetPVCsByFilter(ctx, opts.convertToDiscoveryFilter())

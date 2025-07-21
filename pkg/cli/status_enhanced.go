@@ -8,6 +8,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	cfg "github.com/monlor/local-pvc-backup/pkg/config"
 	"github.com/monlor/local-pvc-backup/pkg/discovery"
 	"github.com/monlor/local-pvc-backup/pkg/nodecom"
 	"github.com/sirupsen/logrus"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
+
 // StatusEnhancedOptions holds options for the enhanced status command
 type StatusEnhancedOptions struct {
 	FilterOptions
@@ -23,7 +25,7 @@ type StatusEnhancedOptions struct {
 }
 
 // NewStatusEnhancedCommand creates the enhanced status command with cross-node communication
-func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, config *rest.Config, log *logrus.Logger) *cobra.Command {
+func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, log *logrus.Logger) *cobra.Command {
 	opts := &StatusEnhancedOptions{}
 
 	cmd := &cobra.Command{
@@ -34,7 +36,7 @@ func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, config *rest.Confi
 			if k8sClient == nil {
 				return fmt.Errorf("kubernetes client not initialized")
 			}
-			return runStatusEnhanced(cmd.Context(), k8sClient, config, opts, log)
+			return runStatusEnhanced(cmd.Context(), k8sClient, restConfig, appConfig, opts, log)
 		},
 	}
 
@@ -47,7 +49,7 @@ func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, config *rest.Confi
 	return cmd
 }
 
-func runStatusEnhanced(ctx context.Context, k8sClient kubernetes.Interface, config *rest.Config, opts *StatusEnhancedOptions, log *logrus.Logger) error {
+func runStatusEnhanced(ctx context.Context, k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, opts *StatusEnhancedOptions, log *logrus.Logger) error {
 	// Ensure we have a valid context
 	if ctx == nil {
 		ctx = context.Background()
@@ -60,11 +62,14 @@ func runStatusEnhanced(ctx context.Context, k8sClient kubernetes.Interface, conf
 
 	log.Debugf("Running enhanced status command with filter: %s", opts.FilterOptions.String())
 
+	// Get DaemonSet configuration from application config
+	log.Debugf("Using DaemonSet: name=%s, namespace=%s", appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace)
+
 	// Create node executor for cross-node communication
-	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, config, "local-pvc-backup", "default", log)
+	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, restConfig, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, log)
 
 	// Create discovery client to find nodes with relevant PVCs
-	discoveryClient := discovery.NewDiscovery(k8sClient, "local-pvc-backup", "default", "/data", log)
+	discoveryClient := discovery.NewDiscovery(k8sClient, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath, log)
 
 	var targetNodes []string
 	if opts.FilterOptions.All {
