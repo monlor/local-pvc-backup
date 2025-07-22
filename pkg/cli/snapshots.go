@@ -64,7 +64,7 @@ func runSnapshots(ctx context.Context, k8sClient kubernetes.Interface, restConfi
 	log.Debugf("Using DaemonSet: name=%s, namespace=%s, storage=%s", appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath)
 
 	// Create node executor for cross-node communication
-	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, restConfig, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, log)
+	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, restConfig, &appConfig.KubernetesConfig, log)
 
 	// Create discovery client to find nodes with relevant PVCs
 	discoveryClient := discovery.NewDiscovery(k8sClient, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath, log)

@@ -5,11 +5,11 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: local-pvc-backup
+      app.kubernetes.io/name: local-pvc-backup
   template:
     metadata:
       labels:
-        app: local-pvc-backup
+        app.kubernetes.io/name: local-pvc-backup
     spec:
       serviceAccountName: local-pvc-backup
       containers:
@@ -27,6 +27,8 @@ spec:
             # Cross-node communication configuration
             - name: DISCOVERY_MODE
               value: "k8s-api"
+            - name: DAEMONSET_LABEL
+              value: "app.kubernetes.io/name"
             # S3 Configuration
             - name: S3_ENDPOINT
               valueFrom:

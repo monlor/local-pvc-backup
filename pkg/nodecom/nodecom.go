@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/monlor/local-pvc-backup/pkg/config"
 	"github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -18,21 +19,19 @@ import (
 
 // NodeExecutor handles cross-node command execution
 type NodeExecutor struct {
-	k8sClient         kubernetes.Interface
-	config            *rest.Config
-	daemonSetName     string
-	daemonSetNamespace string
-	log               *logrus.Logger
+	k8sClient    kubernetes.Interface
+	config       *rest.Config
+	k8sConfig    *config.KubernetesConfig
+	log          *logrus.Logger
 }
 
 // NewNodeExecutor creates a new node executor
-func NewNodeExecutor(k8sClient kubernetes.Interface, config *rest.Config, daemonSetName, daemonSetNamespace string, log *logrus.Logger) *NodeExecutor {
+func NewNodeExecutor(k8sClient kubernetes.Interface, config *rest.Config, k8sConfig *config.KubernetesConfig, log *logrus.Logger) *NodeExecutor {
 	return &NodeExecutor{
-		k8sClient:         k8sClient,
-		config:            config,
-		daemonSetName:     daemonSetName,
-		daemonSetNamespace: daemonSetNamespace,
-		log:               log,
+		k8sClient: k8sClient,
+		config:    config,
+		k8sConfig: k8sConfig,
+		log:       log,
 	}
 }
 
@@ -55,15 +54,21 @@ type NodeCommandResponse struct {
 
 // ExecuteOnNode executes a command on a specific node
 func (ne *NodeExecutor) ExecuteOnNode(ctx context.Context, nodeName string, request NodeCommandRequest) (*NodeCommandResponse, error) {
+	ne.log.Debugf("Executing command on node %s: command=%s, args=%v, namespace=%s, pvc=%s", 
+		nodeName, request.Command, request.Args, request.Namespace, request.PVC)
+	
 	// Find the daemon pod on the target node
 	pod, err := ne.findDaemonPodOnNode(ctx, nodeName)
 	if err != nil {
+		ne.log.Errorf("Failed to find daemon pod on node %s: %v", nodeName, err)
 		return &NodeCommandResponse{
 			NodeName: nodeName,
 			Success:  false,
 			Error:    fmt.Sprintf("failed to find daemon pod on node %s: %v", nodeName, err),
 		}, nil
 	}
+
+	ne.log.Debugf("Found daemon pod %s/%s on node %s", pod.Namespace, pod.Name, nodeName)
 
 	// Build the command to execute
 	cmdArgs := []string{"node-exec"}
@@ -76,9 +81,12 @@ func (ne *NodeExecutor) ExecuteOnNode(ctx context.Context, nodeName string, requ
 	}
 	cmdArgs = append(cmdArgs, request.Args...)
 
+	ne.log.Debugf("Executing command in pod %s/%s: %v", pod.Namespace, pod.Name, cmdArgs)
+
 	// Execute the command
 	output, err := ne.execInPod(ctx, pod, cmdArgs)
 	if err != nil {
+		ne.log.Errorf("Failed to execute command on node %s: %v", nodeName, err)
 		return &NodeCommandResponse{
 			NodeName: nodeName,
 			Success:  false,
@@ -86,9 +94,12 @@ func (ne *NodeExecutor) ExecuteOnNode(ctx context.Context, nodeName string, requ
 		}, nil
 	}
 
+	ne.log.Debugf("Command executed successfully on node %s, output length: %d", nodeName, len(output))
+
 	// Try to parse the output as JSON response
 	var response NodeCommandResponse
 	if err := json.Unmarshal([]byte(output), &response); err != nil {
+		ne.log.Debugf("Output is not JSON, treating as plain text: %s", output)
 		// If not JSON, treat as plain text output
 		return &NodeCommandResponse{
 			NodeName: nodeName,
@@ -98,6 +109,7 @@ func (ne *NodeExecutor) ExecuteOnNode(ctx context.Context, nodeName string, requ
 	}
 
 	response.NodeName = nodeName
+	ne.log.Debugf("Parsed JSON response from node %s: success=%t", nodeName, response.Success)
 	return &response, nil
 }
 
@@ -174,41 +186,84 @@ func (ne *NodeExecutor) ExecuteOnNodesWithPVCs(ctx context.Context, nodeNames []
 
 // findDaemonPodOnNode finds the daemon pod running on a specific node
 func (ne *NodeExecutor) findDaemonPodOnNode(ctx context.Context, nodeName string) (*corev1.Pod, error) {
-	pods, err := ne.k8sClient.CoreV1().Pods(ne.daemonSetNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", ne.daemonSetName),
-		FieldSelector: fmt.Sprintf("spec.nodeName=%s", nodeName),
+	// Build the label selector using the configured label name and daemon set name
+	labelSelector := fmt.Sprintf("%s=%s", ne.k8sConfig.DaemonSetLabel, ne.k8sConfig.DaemonSetName)
+	fieldSelector := fmt.Sprintf("spec.nodeName=%s", nodeName)
+	
+	ne.log.Debugf("Searching for daemon pod on node %s with labelSelector=%s, fieldSelector=%s", 
+		nodeName, labelSelector, fieldSelector)
+	
+	pods, err := ne.k8sClient.CoreV1().Pods(ne.k8sConfig.PodNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
+		FieldSelector: fieldSelector,
 	})
 	if err != nil {
+		ne.log.Errorf("Failed to list pods: %v", err)
 		return nil, fmt.Errorf("failed to list pods: %v", err)
 	}
 
+	ne.log.Debugf("Found %d pods on node %s", len(pods.Items), nodeName)
+	
 	if len(pods.Items) == 0 {
+		// Try to get more information about why no pods were found
+		allPods, err := ne.k8sClient.CoreV1().Pods(ne.k8sConfig.PodNamespace).List(ctx, metav1.ListOptions{
+			LabelSelector: labelSelector,
+		})
+		if err != nil {
+			ne.log.Errorf("Failed to list all daemon pods: %v", err)
+		} else {
+			ne.log.Debugf("Total daemon pods in namespace %s: %d", ne.k8sConfig.PodNamespace, len(allPods.Items))
+			for _, pod := range allPods.Items {
+				ne.log.Debugf("Pod %s: node=%s, phase=%s, labels=%v", 
+					pod.Name, pod.Spec.NodeName, pod.Status.Phase, pod.Labels)
+			}
+		}
 		return nil, fmt.Errorf("no daemon pod found on node %s", nodeName)
 	}
 
 	// Find a running pod
 	for _, pod := range pods.Items {
+		ne.log.Debugf("Checking pod %s: phase=%s, nodeName=%s", 
+			pod.Name, pod.Status.Phase, pod.Spec.NodeName)
 		if pod.Status.Phase == corev1.PodRunning {
+			ne.log.Debugf("Found running daemon pod %s on node %s", pod.Name, nodeName)
 			return &pod, nil
 		}
 	}
 
+	ne.log.Warnf("Found %d pods on node %s but none are running", len(pods.Items), nodeName)
+	for _, pod := range pods.Items {
+		ne.log.Debugf("Pod %s status: phase=%s, reason=%s, message=%s", 
+			pod.Name, pod.Status.Phase, pod.Status.Reason, pod.Status.Message)
+	}
+	
 	return nil, fmt.Errorf("no running daemon pod found on node %s", nodeName)
 }
 
 // getNodesWithDaemonPods returns all nodes that have daemon pods
 func (ne *NodeExecutor) getNodesWithDaemonPods(ctx context.Context) ([]string, error) {
-	pods, err := ne.k8sClient.CoreV1().Pods(ne.daemonSetNamespace).List(ctx, metav1.ListOptions{
-		LabelSelector: fmt.Sprintf("app.kubernetes.io/name=%s", ne.daemonSetName),
+	// Build the label selector using the configured label name and daemon set name
+	labelSelector := fmt.Sprintf("%s=%s", ne.k8sConfig.DaemonSetLabel, ne.k8sConfig.DaemonSetName)
+	
+	ne.log.Debugf("Searching for daemon pods with labelSelector=%s in namespace %s", 
+		labelSelector, ne.k8sConfig.PodNamespace)
+	
+	pods, err := ne.k8sClient.CoreV1().Pods(ne.k8sConfig.PodNamespace).List(ctx, metav1.ListOptions{
+		LabelSelector: labelSelector,
 	})
 	if err != nil {
+		ne.log.Errorf("Failed to list daemon pods: %v", err)
 		return nil, fmt.Errorf("failed to list daemon pods: %v", err)
 	}
 
+	ne.log.Debugf("Found %d total daemon pods", len(pods.Items))
+	
 	nodeSet := make(map[string]bool)
 	for _, pod := range pods.Items {
+		ne.log.Debugf("Pod %s: node=%s, phase=%s", pod.Name, pod.Spec.NodeName, pod.Status.Phase)
 		if pod.Status.Phase == corev1.PodRunning && pod.Spec.NodeName != "" {
 			nodeSet[pod.Spec.NodeName] = true
+			ne.log.Debugf("Added node %s to daemon nodes list", pod.Spec.NodeName)
 		}
 	}
 
@@ -217,6 +272,7 @@ func (ne *NodeExecutor) getNodesWithDaemonPods(ctx context.Context) ([]string, e
 		nodes = append(nodes, node)
 	}
 
+	ne.log.Debugf("Found %d nodes with running daemon pods: %v", len(nodes), nodes)
 	return nodes, nil
 }
 

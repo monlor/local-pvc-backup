@@ -61,7 +61,7 @@ func runBackup(ctx context.Context, k8sClient kubernetes.Interface, restConfig *
 	log.Debugf("Using DaemonSet: name=%s, namespace=%s, storage=%s", appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath)
 
 	// Create node executor for cross-node communication
-	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, restConfig, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, log)
+	nodeExecutor := nodecom.NewNodeExecutor(k8sClient, restConfig, &appConfig.KubernetesConfig, log)
 
 	// Create discovery client to find PVCs and their nodes
 	discoveryClient := discovery.NewDiscovery(k8sClient, appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace, appConfig.BackupConfig.StoragePath, log)

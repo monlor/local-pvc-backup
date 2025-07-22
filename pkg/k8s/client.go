@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,7 +18,6 @@ import (
 type Client struct {
 	clientset *kubernetes.Clientset
 	config    *rest.Config
-	nodeName  string
 	log       *logrus.Logger
 }
 
@@ -51,14 +51,26 @@ func NewClient(cfg *config.Config, log *logrus.Logger) (*Client, error) {
 	return &Client{
 		clientset: clientset,
 		config:    k8sConfig,
-		nodeName:  cfg.KubernetesConfig.NodeName,
 		log:       log,
 	}, nil
 }
 
-// GetNodeName returns the current node name
+// GetNodeName returns the current node name by reading from environment variable
+// This is set by the DaemonSet via downward API
 func (c *Client) GetNodeName() string {
-	return c.nodeName
+	// Try to get from environment variable first (set by DaemonSet)
+	if nodeName := os.Getenv("KUBERNETES_NODE_NAME"); nodeName != "" {
+		return nodeName
+	}
+	
+	// Fallback: try to get from HOSTNAME (less reliable)
+	if hostname := os.Getenv("HOSTNAME"); hostname != "" {
+		return hostname
+	}
+	
+	// Last resort: use localhost
+	c.log.Warn("Could not determine node name, using 'localhost'")
+	return "localhost"
 }
 
 // GetClientset returns the Kubernetes clientset

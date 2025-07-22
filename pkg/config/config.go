@@ -39,9 +39,9 @@ type BackupConfig struct {
 
 // KubernetesConfig holds the Kubernetes-related configuration
 type KubernetesConfig struct {
-	PodNamespace  string `env:"KUBERNETES_NAMESPACE" envDefault:"default"`          // Current pod's namespace (from KUBERNETES_POD_NAMESPACE)
-	DaemonSetName string `env:"DAEMONSET_NAME" envDefault:"local-pvc-backup"` // DaemonSet name for cross-node communication
-	NodeName      string `env:"KUBERNETES_NODE_NAME"`                                    // Current node name (from KUBERNETES_NODE_NAME)
+	PodNamespace    string `env:"KUBERNETES_NAMESPACE" envDefault:"default"`          // Current pod's namespace (from KUBERNETES_POD_NAMESPACE)
+	DaemonSetName   string `env:"DAEMONSET_NAME" envDefault:"local-pvc-backup"`       // DaemonSet name for cross-node communication
+	DaemonSetLabel  string `env:"DAEMONSET_LABEL" envDefault:"app.kubernetes.io/name"` // Label name for DaemonSet pods
 }
 
 // Labels and Annotations for backup configuration

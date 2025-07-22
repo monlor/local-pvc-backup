@@ -47,7 +47,15 @@ RESTIC_CACHE_DIR=/var/cache/restic
 DISCOVERY_MODE=k8s-api
 DAEMONSET_NAME=local-pvc-backup
 DAEMONSET_NAMESPACE=default
+DAEMONSET_LABEL=app.kubernetes.io/name
 ```
+
+### Auto-Configured Variables
+
+The following environment variables are automatically set by the DaemonSet:
+
+- `KUBERNETES_NODE_NAME`: Automatically set to the current node name via downward API
+- `KUBERNETES_NAMESPACE`: Automatically set to the pod's namespace via downward API
 
 ## Quick Start
 
