@@ -71,7 +71,7 @@ func (ne *NodeExecutor) ExecuteOnNode(ctx context.Context, nodeName string, requ
 	ne.log.Debugf("Found daemon pod %s/%s on node %s", pod.Namespace, pod.Name, nodeName)
 
 	// Build the command to execute
-	cmdArgs := []string{"node-exec"}
+	cmdArgs := []string{"/local-pvc-backup", "node-exec"}
 	cmdArgs = append(cmdArgs, request.Command)
 	if request.Namespace != "" {
 		cmdArgs = append(cmdArgs, "--namespace", request.Namespace)
