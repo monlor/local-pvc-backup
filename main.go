@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
-	"strings"
 	"syscall"
 	"time"
 
@@ -125,6 +124,10 @@ func main() {
 			runNodeExec(cmd, args)
 		},
 	}
+	
+	// Add flags for node-exec command
+	nodeExecCmd.Flags().String("namespace", "", "Namespace filter")
+	nodeExecCmd.Flags().String("pvc", "", "PVC filter")
 
 	// Add enhanced status command - create template and copy flags
 	statusTemplate := cli.NewStatusCommand(nil, nil, nil, log)
@@ -291,32 +294,13 @@ func runNodeExec(cmd *cobra.Command, args []string) {
 	}
 
 	command := args[0]
-	cmdArgs := args[1:]
+	remainingArgs := args[1:]
 
-	// Parse additional flags
-	var namespace, pvc string
-	cmd.Flags().StringVar(&namespace, "namespace", "", "Namespace filter")
-	cmd.Flags().StringVar(&pvc, "pvc", "", "PVC filter")
-	cmd.ParseFlags(cmdArgs)
+	// Get flag values
+	namespace, _ := cmd.Flags().GetString("namespace")
+	pvc, _ := cmd.Flags().GetString("pvc")
 
-	// Remove parsed flags from args
-	filteredArgs := []string{}
-	skipNext := false
-	for _, arg := range cmdArgs {
-		if skipNext {
-			skipNext = false
-			continue
-		}
-		if arg == "--namespace" || arg == "--pvc" {
-			skipNext = true
-			continue
-		}
-		if !strings.HasPrefix(arg, "--") {
-			filteredArgs = append(filteredArgs, arg)
-		}
-	}
-
-	response := handleNodeExecCommand(command, filteredArgs, namespace, pvc)
+	response := handleNodeExecCommand(command, remainingArgs, namespace, pvc)
 	
 	// Output JSON response
 	output, _ := json.Marshal(response)
