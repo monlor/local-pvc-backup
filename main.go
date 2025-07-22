@@ -344,7 +344,7 @@ func handleNodeExecCommand(command string, args []string, namespace, pvc string)
 }
 
 func handleNodeExecStatus(ctx context.Context, namespace, pvc string) map[string]interface{} {
-	// Get local PVCs that match the filter
+	// Get local PVCs that match the filter AND actually exist on this node
 	filter := discovery.FilterOptions{
 		Namespace: namespace,
 		PVC:       pvc,
@@ -360,9 +360,29 @@ func handleNodeExecStatus(ctx context.Context, namespace, pvc string) map[string
 		}
 	}
 
-	// Get backup status for each PVC
-	var pvcStatuses []map[string]interface{}
+	// Filter to only include PVCs that actually exist on THIS node
+	var localPVCs []discovery.GlobalPVCInfo
+	currentNodeName := k8sClient.GetNodeName()
+	
 	for _, pvcInfo := range pvcs {
+		// Only include PVCs that are actually on this node AND have local storage
+		if pvcInfo.NodeName == currentNodeName {
+			// Double-check that the PVC path actually exists on the local filesystem
+			if _, err := os.Stat(pvcInfo.Path); err == nil {
+				localPVCs = append(localPVCs, pvcInfo)
+				log.Debugf("Found local PVC %s/%s at path %s", pvcInfo.Namespace, pvcInfo.PVCName, pvcInfo.Path)
+			} else {
+				log.Debugf("PVC %s/%s is assigned to this node but path %s doesn't exist locally", 
+					pvcInfo.Namespace, pvcInfo.PVCName, pvcInfo.Path)
+			}
+		}
+	}
+
+	log.Debugf("Node %s has %d local PVCs out of %d total discovered", currentNodeName, len(localPVCs), len(pvcs))
+
+	// Get backup status for each LOCAL PVC
+	var pvcStatuses []map[string]interface{}
+	for _, pvcInfo := range localPVCs {
 		// Get snapshots for this PVC
 		snapshots, err := resticClient.ListSnapshotsByPVC(ctx, pvcInfo.UID)
 		if err != nil {
