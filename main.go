@@ -51,9 +51,6 @@ func initializeClients() error {
 		return fmt.Errorf("failed to parse environment variables: %v", err)
 	}
 	
-	// Initialize backward compatibility
-	cfg.InitializeCompatibility()
-
 	// Set log level
 	level, err := logrus.ParseLevel(cfg.BackupConfig.LogLevel)
 	if err != nil {

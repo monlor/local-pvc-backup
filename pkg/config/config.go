@@ -72,14 +72,3 @@ func DefaultPVCBackupConfig() PVCBackupConfig {
 		Exclude: "",
 	}
 }
-
-// InitializeCompatibility sets up backward compatibility for environment variables
-func (c *Config) InitializeCompatibility() {
-	// Handle backward compatibility for namespace
-	if c.KubernetesConfig.PodNamespace == "default" {
-		// Check for the old DAEMONSET_NAMESPACE variable as fallback
-		if oldNamespace := os.Getenv("DAEMONSET_NAMESPACE"); oldNamespace != "" {
-			c.KubernetesConfig.PodNamespace = oldNamespace
-		}
-	}
-}

@@ -190,8 +190,8 @@ func (ne *NodeExecutor) findDaemonPodOnNode(ctx context.Context, nodeName string
 	labelSelector := fmt.Sprintf("%s=%s", ne.k8sConfig.DaemonSetLabel, ne.k8sConfig.DaemonSetName)
 	fieldSelector := fmt.Sprintf("spec.nodeName=%s", nodeName)
 	
-	ne.log.Debugf("Searching for daemon pod on node %s with labelSelector=%s, fieldSelector=%s", 
-		nodeName, labelSelector, fieldSelector)
+	ne.log.Debugf("Searching for daemon pod on node %s with labelSelector=%s, fieldSelector=%s, namespace=%s", 
+		nodeName, labelSelector, fieldSelector, ne.k8sConfig.PodNamespace)
 	
 	pods, err := ne.k8sClient.CoreV1().Pods(ne.k8sConfig.PodNamespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
