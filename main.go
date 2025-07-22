@@ -130,7 +130,7 @@ func main() {
 	}
 
 	// Add enhanced status command - create template and copy flags
-	statusTemplate := cli.NewStatusEnhancedCommand(nil, nil, nil, log)
+	statusTemplate := cli.NewStatusCommand(nil, nil, nil, log)
 	statusCmd := &cobra.Command{
 		Use:   statusTemplate.Use,
 		Short: statusTemplate.Short,
@@ -139,14 +139,10 @@ func main() {
 			if err := initializeClients(); err != nil {
 				return err
 			}
-			// Ensure we have a proper context
-			ctx := cmd.Context()
-			if ctx == nil {
-				ctx = context.Background()
-			}
-			actualCmd := cli.NewStatusEnhancedCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), cfg, log)
+			// Create the actual command with initialized clients
+			actualCmd := cli.NewStatusCommand(k8sClient.GetClientset(), k8sClient.GetConfig(), cfg, log)
 			// Set context on the actual command
-			actualCmd.SetContext(ctx)
+			actualCmd.SetContext(cmd.Context())
 			// Copy flag values
 			actualCmd.Flags().Set("all", cmd.Flag("all").Value.String())
 			actualCmd.Flags().Set("namespace", cmd.Flag("namespace").Value.String())

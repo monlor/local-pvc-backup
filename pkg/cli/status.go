@@ -18,15 +18,15 @@ import (
 )
 
 
-// StatusEnhancedOptions holds options for the enhanced status command
-type StatusEnhancedOptions struct {
+// StatusOptions holds options for the status command
+type StatusOptions struct {
 	FilterOptions
 	OutputFormat string
 }
 
-// NewStatusEnhancedCommand creates the enhanced status command with cross-node communication
-func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, log *logrus.Logger) *cobra.Command {
-	opts := &StatusEnhancedOptions{}
+// NewStatusCommand creates the status command with cross-node communication
+func NewStatusCommand(k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, log *logrus.Logger) *cobra.Command {
+	opts := &StatusOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "status",
@@ -36,7 +36,7 @@ func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, restConfig *rest.C
 			if k8sClient == nil {
 				return fmt.Errorf("kubernetes client not initialized")
 			}
-			return runStatusEnhanced(cmd.Context(), k8sClient, restConfig, appConfig, opts, log)
+			return runStatus(cmd.Context(), k8sClient, restConfig, appConfig, opts, log)
 		},
 	}
 
@@ -49,7 +49,7 @@ func NewStatusEnhancedCommand(k8sClient kubernetes.Interface, restConfig *rest.C
 	return cmd
 }
 
-func runStatusEnhanced(ctx context.Context, k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, opts *StatusEnhancedOptions, log *logrus.Logger) error {
+func runStatus(ctx context.Context, k8sClient kubernetes.Interface, restConfig *rest.Config, appConfig *cfg.Config, opts *StatusOptions, log *logrus.Logger) error {
 	// Ensure we have a valid context
 	if ctx == nil {
 		ctx = context.Background()
@@ -60,7 +60,7 @@ func runStatusEnhanced(ctx context.Context, k8sClient kubernetes.Interface, rest
 		return fmt.Errorf("invalid filter options: %v", err)
 	}
 
-	log.Debugf("Running enhanced status command with filter: %s", opts.FilterOptions.String())
+	log.Debugf("Running status command with filter: %s", opts.FilterOptions.String())
 
 	// Get DaemonSet configuration from application config
 	log.Debugf("Using DaemonSet: name=%s, namespace=%s", appConfig.KubernetesConfig.DaemonSetName, appConfig.KubernetesConfig.PodNamespace)
@@ -187,11 +187,11 @@ func runStatusEnhanced(ctx context.Context, k8sClient kubernetes.Interface, rest
 	// Display results based on output format
 	switch opts.OutputFormat {
 	case "table":
-		return displayStatusEnhancedTable(allPVCs)
+		return displayStatusTable(allPVCs)
 	case "json":
-		return displayStatusEnhancedJSON(allPVCs)
+		return displayStatusJSON(allPVCs)
 	case "yaml":
-		return displayStatusEnhancedYAML(allPVCs)
+		return displayStatusYAML(allPVCs)
 	default:
 		return fmt.Errorf("unsupported output format: %s", opts.OutputFormat)
 	}
@@ -209,7 +209,7 @@ type PVCStatusInfo struct {
 	BackupEnabled bool
 }
 
-func displayStatusEnhancedTable(pvcs []PVCStatusInfo) error {
+func displayStatusTable(pvcs []PVCStatusInfo) error {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer w.Flush()
 
@@ -241,12 +241,12 @@ func displayStatusEnhancedTable(pvcs []PVCStatusInfo) error {
 	return nil
 }
 
-func displayStatusEnhancedJSON(pvcs []PVCStatusInfo) error {
+func displayStatusJSON(pvcs []PVCStatusInfo) error {
 	// TODO: Implement JSON output
 	return fmt.Errorf("JSON output not implemented yet")
 }
 
-func displayStatusEnhancedYAML(pvcs []PVCStatusInfo) error {
+func displayStatusYAML(pvcs []PVCStatusInfo) error {
 	// TODO: Implement YAML output
 	return fmt.Errorf("YAML output not implemented yet")
 }
